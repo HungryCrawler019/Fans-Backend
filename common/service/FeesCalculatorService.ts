@@ -301,6 +301,69 @@ class FeesCalculator {
 		return { amount, processingFee, platformFee, totalFees, netAmount };
 	}
 
+	/**
+	 * Calculates the transaction fee for creator video calls.
+	 * @param cents - Amount in cents.
+	 * @returns An object containing the original amount, platform fee, and net amount after fees.
+	 */
+	creatorVideoCallPurchaseFee(
+		cents: number,
+		customPlatformFee?: number | null,
+		service: PurchaseService = "AuthorizeNet",
+	): Record<string, Dinero> {
+		const amount = dinero({ amount: cents });
+
+		let processingFee: Dinero;
+		switch (service) {
+			case "Stripe": {
+				const stripeProcessingFee = amount.multiply(this.stripeFee).add(
+					dinero({
+						amount: Math.round(
+							this.stripeFeeFixed * DECIMAL_TO_CENT_FACTOR,
+						),
+					}),
+				);
+				processingFee = stripeProcessingFee;
+				break;
+			}
+			case "PayPal": {
+				const paypalProcessingFee = amount.multiply(this.paypalFee).add(
+					dinero({
+						amount: Math.round(
+							this.paypalFeeFixed * DECIMAL_TO_CENT_FACTOR,
+						),
+					}),
+				);
+				processingFee = paypalProcessingFee;
+				break;
+			}
+			case "AuthorizeNet": {
+				const authorizeNetProcessingFee = amount
+					.multiply(this.authorizeNetFee)
+					.add(
+						dinero({
+							amount: Math.round(
+								this.authorizeNetFeeFixed *
+									DECIMAL_TO_CENT_FACTOR,
+							),
+						}),
+					);
+				processingFee = authorizeNetProcessingFee;
+				break;
+			}
+			default:
+				throw new Error(`Unsupported service: ${service}`);
+		}
+
+		const platformFee = amount.multiply(
+			customPlatformFee ?? this.creatorPlatformFee,
+		);
+		const totalFees = processingFee.add(platformFee);
+		const netAmount = amount.subtract(totalFees);
+
+		return { amount, processingFee, platformFee, totalFees, netAmount };
+	}
+
 	private cleanEventData(eventData: any): any {
 		if (eventData !== null && typeof eventData === "object") {
 			Object.keys(eventData).forEach((key) => {

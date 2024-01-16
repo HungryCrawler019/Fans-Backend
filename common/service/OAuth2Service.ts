@@ -1,17 +1,41 @@
 import { Injectable, Injector } from "async-injection";
-import axios from "axios";
 import { RESTPostOAuth2AccessTokenResult } from "discord-api-types/v10";
 import { Logger } from "pino";
 import qs from "qs";
 
 export interface IOAuth2GenericUser {
+	/**
+	 * The provider's name, equal to `BaseProvider.providerName`.
+	 */
 	provider: string;
+	/**
+	 * The user's unique ID on the provider.
+	 */
 	id: string;
+	/**
+	 * The user's email address.
+	 */
 	email: string;
+	/**
+	 * The user's display name.
+	 */
 	name: string;
+	/**
+	 * Full URL to the avatar image.
+	 */
 	avatarUrl?: string;
+	/**
+	 * Bearer token used to authenticate requests to the provider.
+	 */
 	accessToken: string;
+	/**
+	 * Used to refresh the access token. Optional.
+	 */
 	refreshToken?: string;
+	/**
+	 * Used by providers that support organizational roles, eg. Okta or Azure AD.
+	 */
+	roles: string[];
 }
 
 export abstract class BaseProvider {
@@ -20,10 +44,14 @@ export abstract class BaseProvider {
 	clientSecret?: string;
 	requiredScopes: string[];
 	getTokenURL: string;
+	authorizeURL: string;
 
 	public constructor(clientID: string, clientSecret?: string) {
 		this.clientID = clientID;
 		this.clientSecret = clientSecret;
+		this.requiredScopes = [];
+		this.getTokenURL = "";
+		this.authorizeURL = "";
 	}
 
 	/**
@@ -56,55 +84,7 @@ class DiscordProvider extends BaseProvider {
 		super(clientID, clientSecret);
 		this.requiredScopes = ["identify", "email"];
 		this.getTokenURL = "https://discord.com/api/v10/oauth2/token";
-	}
-
-	async getUserWithAccessToken(
-		accessToken: string,
-		refreshToken?: string,
-	): Promise<IOAuth2GenericUser> {
-		const resp = await axios.get("https://discord.com/api/v10/users/@me", {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
-		});
-
-		if (resp.status !== 200) {
-			throw new Error("Failed to get user info");
-		}
-
-		const body = resp.data as {
-			id: string;
-			username: string;
-			discriminator: string;
-			global_name?: string;
-			email?: string;
-			verified: boolean;
-			avatar?: string;
-		};
-
-		console.log("oauth2", body);
-
-		if (!body.verified || !body.email) {
-			throw new Error(
-				"The email must be verified in order to authenticate",
-			);
-		}
-
-		const name = body.global_name
-			? body.global_name
-			: body.discriminator === "0"
-			? body.username
-			: `${body.username}#${body.discriminator}`;
-
-		return {
-			provider: "discord",
-			id: body.id,
-			email: body.email,
-			name,
-			avatarUrl: `https://cdn.discordapp.com/avatars/${body.id}/${body.avatar}.png?size=128`,
-			accessToken,
-			refreshToken,
-		};
+		this.authorizeURL = "https://discord.com/oauth2/authorize";
 	}
 
 	async getUserWithCode(
@@ -112,10 +92,8 @@ class DiscordProvider extends BaseProvider {
 		code: string,
 		codeVerifier?: string,
 	): Promise<IOAuth2GenericUser> {
-		// Gets an oauth2 token
-		const resp = await axios.post(
-			this.getTokenURL,
-			qs.stringify({
+		const resp = await fetch(
+			`${this.getTokenURL}?${qs.stringify({
 				client_id: this.clientID,
 				client_secret: this.clientSecret,
 				code: code,
@@ -123,8 +101,9 @@ class DiscordProvider extends BaseProvider {
 				redirect_uri: redirectUri,
 				code_verifier: codeVerifier,
 				scope: this.requiredScopes.join(" "),
-			}),
+			})}`,
 			{
+				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
 				},
@@ -135,7 +114,7 @@ class DiscordProvider extends BaseProvider {
 			throw new Error("Failed to get Discord access token");
 		}
 
-		const body = resp.data as RESTPostOAuth2AccessTokenResult;
+		const body = (await resp.json()) as RESTPostOAuth2AccessTokenResult;
 		const scopes: string[] = (body.scope ?? "").split(" ");
 
 		// Ensures we have proper scopes returned
@@ -156,6 +135,54 @@ class DiscordProvider extends BaseProvider {
 			body.refresh_token,
 		);
 	}
+
+	async getUserWithAccessToken(
+		accessToken: string,
+		refreshToken?: string,
+	): Promise<IOAuth2GenericUser> {
+		const resp = await fetch("https://discord.com/api/v10/users/@me", {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+
+		if (resp.status !== 200) {
+			throw new Error("Failed to get user info");
+		}
+
+		const body = (await resp.json()) as {
+			id: string;
+			username: string;
+			discriminator: string;
+			global_name?: string;
+			email?: string;
+			verified: boolean;
+			avatar?: string;
+		};
+
+		if (!body.verified || !body.email) {
+			throw new Error(
+				"The email must be verified in order to authenticate",
+			);
+		}
+
+		const name = body.global_name
+			? body.global_name
+			: body.discriminator === "0"
+			? body.username
+			: `${body.username}#${body.discriminator}`;
+
+		return {
+			provider: DiscordProvider.providerName,
+			id: body.id,
+			email: body.email,
+			name,
+			avatarUrl: `https://cdn.discordapp.com/avatars/${body.id}/${body.avatar}.png?size=128`,
+			accessToken,
+			refreshToken,
+			roles: [],
+		};
+	}
 }
 
 class GoogleProvider extends BaseProvider {
@@ -168,6 +195,7 @@ class GoogleProvider extends BaseProvider {
 			"https://www.googleapis.com/auth/userinfo.profile",
 		];
 		this.getTokenURL = "https://oauth2.googleapis.com/token";
+		this.authorizeURL = "https://accounts.google.com/o/oauth2/v2/auth";
 	}
 
 	/**
@@ -181,17 +209,17 @@ class GoogleProvider extends BaseProvider {
 		code: string,
 		codeVerifier?: string,
 	): Promise<IOAuth2GenericUser> {
-		const resp = await axios.post(
-			this.getTokenURL,
-			qs.stringify({
+		const resp = await fetch(
+			`${this.getTokenURL}?${qs.stringify({
 				client_id: this.clientID,
 				client_secret: this.clientSecret,
 				code: code,
 				grant_type: "authorization_code",
 				redirect_uri: redirectUri,
 				code_verifier: codeVerifier,
-			}),
+			})}`,
 			{
+				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
 				},
@@ -202,7 +230,7 @@ class GoogleProvider extends BaseProvider {
 			throw new Error("Failed to get access token");
 		}
 
-		const body = resp.data;
+		const body = await resp.json();
 
 		const scopes: string[] = (body.scope ?? "").split(" ");
 
@@ -225,24 +253,26 @@ class GoogleProvider extends BaseProvider {
 		accessToken: string,
 		refreshToken?: string,
 	): Promise<IOAuth2GenericUser> {
-		const resp = await axios.get(
+		const resp = await fetch(
 			"https://www.googleapis.com/oauth2/v2/userinfo",
-			{ headers: { Authorization: `Bearer ${accessToken}` } },
+			{
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			},
 		);
 
 		if (resp.status !== 200) {
 			throw new Error("Failed to get user info");
 		}
 
-		const body = resp.data as {
+		const body = (await resp.json()) as {
 			id: string;
 			email: string;
 			verified_email: boolean;
 			name: string;
 			picture?: string;
 		};
-
-		console.log("oauth2", body);
 
 		if (!body.verified_email || !body.email) {
 			throw new Error(
@@ -251,26 +281,16 @@ class GoogleProvider extends BaseProvider {
 		}
 
 		return {
-			provider: "google",
+			provider: GoogleProvider.providerName,
 			id: body.id,
 			email: body.email,
 			name: body.name,
 			avatarUrl: body.picture,
 			accessToken: accessToken,
+			refreshToken: refreshToken,
+			roles: [],
 		};
 	}
-}
-
-class GoogleIosProvider extends GoogleProvider {
-	static providerName = "google_ios";
-}
-
-class GoogleAndroidProvider extends GoogleProvider {
-	static providerName = "google_android";
-}
-
-class GoogleWebProvider extends GoogleProvider {
-	static providerName = "google_web";
 }
 
 class TwitterProvider extends BaseProvider {
@@ -280,6 +300,7 @@ class TwitterProvider extends BaseProvider {
 		super(clientID, clientSecret);
 		this.requiredScopes = ["tweet.read", "users.read"];
 		this.getTokenURL = "https://api.twitter.com/2/oauth2/token";
+		this.authorizeURL = "https://twitter.com/i/oauth2/authorize";
 	}
 
 	/**
@@ -293,19 +314,17 @@ class TwitterProvider extends BaseProvider {
 		code: string,
 		codeVerifier?: string,
 	): Promise<IOAuth2GenericUser> {
-		const resp = await axios.post(
-			this.getTokenURL +
-				"?" +
-				qs.stringify({
-					code: code,
-					grant_type: "authorization_code",
-					client_id: this.clientID,
-					client_secret: this.clientSecret,
-					redirect_uri: redirectUri,
-					code_verifier: codeVerifier,
-				}),
-			undefined,
+		const resp = await fetch(
+			`${this.getTokenURL}?${qs.stringify({
+				code: code,
+				grant_type: "authorization_code",
+				client_id: this.clientID,
+				client_secret: this.clientSecret,
+				redirect_uri: redirectUri,
+				code_verifier: codeVerifier,
+			})}`,
 			{
+				method: "POST",
 				headers: {
 					"Content-Type": "application/x-www-form-urlencoded",
 				},
@@ -316,7 +335,7 @@ class TwitterProvider extends BaseProvider {
 			throw new Error("Failed to get access token");
 		}
 
-		const body = resp.data;
+		const body = await resp.json();
 		const scopes: string[] = (body.scope ?? "").split(" ");
 		for (const scope of this.requiredScopes) {
 			if (!scopes.includes(scope)) {
@@ -336,36 +355,42 @@ class TwitterProvider extends BaseProvider {
 		accessToken: string,
 		refreshToken?: string,
 	): Promise<IOAuth2GenericUser> {
-		const resp = await axios.get(
-			`https://api.twitter.com/2/users/me?${qs.stringify({
-				"user.fields": [
-					"id",
-					"name",
-					"username",
-					"profile_image_url",
-				].join(","),
-			})}`,
-			{ headers: { Authorization: `Bearer ${accessToken}` } },
+		const resp = await fetch(
+			"https://api.twitter.com/1.1/account/verify_credentials.json?include_email=true",
+			{
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			},
 		);
 
 		if (resp.status !== 200) {
 			throw new Error("Failed to get user info");
 		}
 
-		const body = resp.data.data as {
-			id: string;
+		const body = (await resp.json()).data as {
+			id_str: string;
 			name: string;
-			username: string;
-			profile_image_url?: string;
+			screen_name: string;
+			profile_image_url_https: string | null;
+			email: string | null;
 		};
 
+		if (!body.email) {
+			throw new Error(
+				"Twitter has not provided an email address for this account.",
+			);
+		}
+
 		return {
-			provider: "twitter",
-			id: body.id,
+			provider: TwitterProvider.providerName,
+			id: body.id_str,
 			name: body.name,
-			email: `@${body.username.toLowerCase()}`,
-			avatarUrl: body.profile_image_url,
+			email: body.email,
+			avatarUrl: body.profile_image_url_https ?? undefined,
 			accessToken: accessToken,
+			refreshToken: refreshToken,
+			roles: [],
 		};
 	}
 }
@@ -392,35 +417,15 @@ export async function oAuth2Factory(
 ): Promise<OAuth2Service> {
 	const logger = await injector.resolve<Logger>("logger");
 	const oAuth2 = new OAuth2Service();
-	const providers = [
-		GoogleIosProvider,
-		GoogleAndroidProvider,
-		GoogleWebProvider,
-		TwitterProvider,
-		DiscordProvider,
-	];
+	const providers = [GoogleProvider, TwitterProvider, DiscordProvider];
 
 	for (const Provider of providers) {
 		const clientIDEnv = `OAUTH2_${Provider.providerName.toUpperCase()}_CLIENT_ID`;
-		const clientSecretEnv = !["google_ios", "google_android"].includes(
-			Provider.providerName,
-		)
-			? `OAUTH2_${Provider.providerName.toUpperCase()}_SECRET`
-			: undefined;
+		const clientSecretEnv = `OAUTH2_${Provider.providerName.toUpperCase()}_SECRET`;
 		const clientID = process.env[clientIDEnv];
-		const clientSecret = !["google_ios", "google_android"].includes(
-			Provider.providerName,
-		)
-			? process.env[clientSecretEnv!]
-			: undefined;
+		const clientSecret = process.env[clientSecretEnv];
 
-		if (
-			!clientID ||
-			(!["google_ios", "google_android"].includes(
-				Provider.providerName,
-			) &&
-				!clientSecret)
-		) {
+		if (!clientID || !clientSecret) {
 			logger.warn(
 				`OAuth2 provider ${Provider.providerName} is not configured`,
 			);

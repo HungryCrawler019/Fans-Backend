@@ -304,6 +304,130 @@ class AuthorizeNetService {
 		);
 	}
 
+	async authorizeCreditCard(transactionDetails: {
+		customerProfileId: string;
+		customerPaymentProfileId: string;
+		customerAddressId?: string;
+		description: string;
+		amount: number;
+		merchantData: {
+			userId: string;
+			transactionId: string;
+		};
+	}): Promise<pkg.APIContracts.CreateTransactionResponse> {
+		const merchantAuthenticationType =
+			new APIContracts.MerchantAuthenticationType();
+		merchantAuthenticationType.setName(this.#apiLoginKey);
+		merchantAuthenticationType.setTransactionKey(this.#transactionKey);
+
+		const profileToCharge = new APIContracts.CustomerProfilePaymentType();
+		profileToCharge.setCustomerProfileId(
+			transactionDetails.customerProfileId,
+		);
+
+		const paymentProfile = new APIContracts.PaymentProfile();
+		paymentProfile.setPaymentProfileId(
+			transactionDetails.customerPaymentProfileId,
+		);
+		profileToCharge.setPaymentProfile(paymentProfile);
+
+		const orderDetails = new APIContracts.OrderType();
+		orderDetails.setInvoiceNumber(`INV-${new Date().getTime()}`);
+		orderDetails.setDescription(
+			`${transactionDetails.description} | User ID: ${transactionDetails.merchantData.userId} | Transaction ID: ${transactionDetails.merchantData.transactionId}`,
+		);
+
+		const transactionRequestType =
+			new APIContracts.TransactionRequestType();
+		transactionRequestType.setTransactionType(
+			APIContracts.TransactionTypeEnum.AUTHONLYTRANSACTION,
+		);
+		transactionRequestType.setProfile(profileToCharge);
+		transactionRequestType.setAmount(transactionDetails.amount);
+		transactionRequestType.setOrder(orderDetails);
+
+		const createRequest = new APIContracts.CreateTransactionRequest();
+		createRequest.setMerchantAuthentication(merchantAuthenticationType);
+		createRequest.setTransactionRequest(transactionRequestType);
+
+		return new Promise<pkg.APIContracts.CreateTransactionResponse>(
+			(resolve, reject) => {
+				const ctrl = new APIControllers.CreateTransactionController(
+					createRequest.getJSON(),
+				);
+				ctrl.setEnvironment(this.environment);
+				ctrl.execute(() => {
+					const apiResponse = ctrl.getResponse();
+					const response = new APIContracts.CreateTransactionResponse(
+						apiResponse,
+					);
+
+					if (!response) {
+						reject(new Error("No response received."));
+						return;
+					}
+
+					resolve(response);
+				});
+			},
+		);
+	}
+
+	async capturePreviouslyAuthorizedAmount(transactionDetails: {
+		transactionId: string;
+		description: string;
+		amount: number;
+		merchantData: {
+			userId: string;
+			transactionId: string;
+		};
+	}): Promise<pkg.APIContracts.CreateTransactionResponse> {
+		const merchantAuthenticationType =
+			new APIContracts.MerchantAuthenticationType();
+		merchantAuthenticationType.setName(this.#apiLoginKey);
+		merchantAuthenticationType.setTransactionKey(this.#transactionKey);
+
+		const orderDetails = new APIContracts.OrderType();
+		orderDetails.setInvoiceNumber(`INV-${new Date().getTime()}`);
+		orderDetails.setDescription(
+			`${transactionDetails.description} | User ID: ${transactionDetails.merchantData.userId} | Transaction ID: ${transactionDetails.merchantData.transactionId}`,
+		);
+
+		const transactionRequestType =
+			new APIContracts.TransactionRequestType();
+		transactionRequestType.setTransactionType(
+			APIContracts.TransactionTypeEnum.PRIORAUTHCAPTURETRANSACTION,
+		);
+		transactionRequestType.setRefTransId(transactionDetails.transactionId);
+		transactionRequestType.setOrder(orderDetails);
+
+		const createRequest = new APIContracts.CreateTransactionRequest();
+		createRequest.setMerchantAuthentication(merchantAuthenticationType);
+		createRequest.setTransactionRequest(transactionRequestType);
+
+		return new Promise<pkg.APIContracts.CreateTransactionResponse>(
+			(resolve, reject) => {
+				const ctrl = new APIControllers.CreateTransactionController(
+					createRequest.getJSON(),
+				);
+				ctrl.setEnvironment(this.environment);
+				ctrl.execute(() => {
+					const apiResponse = ctrl.getResponse();
+					const response = new APIContracts.CreateTransactionResponse(
+						apiResponse,
+					);
+
+					if (!response) {
+						reject(new Error("No response received."));
+						return;
+					}
+
+					resolve(response);
+				});
+			},
+		);
+	}
+
 	async createPaymentTransaction(transactionDetails: {
 		customerProfileId: string;
 		customerPaymentProfileId: string;
