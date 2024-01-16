@@ -506,9 +506,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						OR: [
 							{
 								id: {
-									in: data.postMedias?.map((item) =>
-										BigInt(item.postMediaId),
-									),
+									in: data.mediaIds?.map((id) => BigInt(id)),
 								},
 							},
 							{
@@ -557,15 +555,11 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			// data.mediaIds
 			if (
-				data.postMedias &&
-				data.postMedias.length > 0 &&
+				data.mediaIds &&
+				data.mediaIds.length > 0 &&
 				(await prisma.upload.count({
 					where: {
-						id: {
-							in: data.postMedias.map((item) =>
-								BigInt(item.postMediaId),
-							),
-						},
+						id: { in: data.mediaIds.map((m) => BigInt(m)) },
 						userId: { not: BigInt(session.userId) },
 						usage: UploadUsageType.POST,
 					},
@@ -653,22 +647,14 @@ export default async function routes(fastify: FastifyTypebox) {
 					isAudioLeveling: data.isAudioLeveling,
 					isPaidPost: !!data.paidPost,
 					isPosted: isPosted,
-					postMedias: data.postMedias
+					postMedias: data.mediaIds
 						? {
-								create: data.postMedias.map((item) => ({
-									id: snowflake.gen(),
-									uploadId: BigInt(item.postMediaId),
-									postMediaTags: {
-										createMany: {
-											data: item.tags.map((tag) => ({
-												id: snowflake.gen(),
-												userId: BigInt(tag.userId),
-												pointX: tag.pointX,
-												pointY: tag.pointY,
-											})),
-										},
-									},
-								})),
+								createMany: {
+									data: data.mediaIds.map((id) => ({
+										id: snowflake.gen(),
+										uploadId: BigInt(id),
+									})),
+								},
 						  }
 						: undefined,
 					postForms: data.formIds
@@ -822,7 +808,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					profile: true,
 					thumbMedia: true,
 					postMedias: {
-						include: { upload: true, postMediaTags: true },
+						include: { upload: true },
 					},
 					poll: {
 						include: {
@@ -1310,6 +1296,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				page = 1,
 				size = DEFAULT_PAGE_SIZE,
 				categoryId,
+				userListId,
 			} = request.query;
 			const session = request.session!;
 			const profile = await session.getProfile(prisma);
@@ -1340,7 +1327,19 @@ export default async function routes(fastify: FastifyTypebox) {
 					},
 				});
 
-			const activeCreatorIds = user?.activeUserList
+			const userList = userListId
+				? await prisma.userList.findFirst({
+						where: {
+							id: BigInt(userListId),
+							userId: BigInt(session.userId),
+						},
+						include: { creators: true },
+				  })
+				: undefined;
+
+			const activeCreatorIds = userList
+				? userList.creators.map((c) => c.profileId)
+				: user?.activeUserList
 				? user.activeUserList.creators.map((c) => c.profileId)
 				: undefined;
 
@@ -1371,7 +1370,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				},
 				orderBy:
 					sort === "Latest"
-						? { updatedAt: "desc" }
+						? { id: "desc" }
 						: sort === "Popular"
 						? [
 								{ comments: { _count: "desc" } },
@@ -1493,7 +1492,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					},
 					orderBy:
 						sort === "Latest"
-							? [{ updatedAt: "desc" }]
+							? [{ id: "desc" }]
 							: sort === "Popular"
 							? [
 									{ comments: { _count: "desc" } },
@@ -1561,7 +1560,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					},
 					orderBy:
 						sort === "Latest"
-							? [{ updatedAt: "desc" }]
+							? [{ id: "desc" }]
 							: sort === "Popular"
 							? [
 									{ comments: { _count: "desc" } },
@@ -1699,13 +1698,14 @@ export default async function routes(fastify: FastifyTypebox) {
 					},
 					orderBy:
 						sort === "Latest"
-							? [{ updatedAt: "desc" }]
+							? [{ isPinned: "desc" }, { id: "desc" }]
 							: sort === "Popular"
 							? [
+									{ isPinned: "desc" },
 									{ comments: { _count: "desc" } },
 									{ postLikes: { _count: "desc" } },
 							  ]
-							: undefined,
+							: [{ isPinned: "desc" }],
 				});
 
 				if (isOutOfRange(page, size, total)) {
@@ -1833,7 +1833,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						},
 						orderBy:
 							sort === "Latest"
-								? [{ isPinned: "desc" }, { updatedAt: "desc" }]
+								? [{ isPinned: "desc" }, { id: "desc" }]
 								: sort === "Popular"
 								? [
 										{ isPinned: "desc" },
@@ -1902,7 +1902,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						},
 						orderBy:
 							sort === "Latest"
-								? [{ isPinned: "desc" }, { updatedAt: "desc" }]
+								? [{ isPinned: "desc" }, { id: "desc" }]
 								: sort === "Popular"
 								? [
 										{ isPinned: "desc" },
@@ -2002,16 +2002,6 @@ export default async function routes(fastify: FastifyTypebox) {
 						  }
 						: undefined,
 				},
-				orderBy:
-					sort === "Latest"
-						? [{ isPinned: "desc" }, { updatedAt: "desc" }]
-						: sort === "Popular"
-						? [
-								{ isPinned: "desc" },
-								{ comments: { _count: "desc" } },
-								{ postLikes: { _count: "desc" } },
-						  ]
-						: [{ isPinned: "desc" }],
 			});
 
 			const result: PostsRespBody = {

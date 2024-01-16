@@ -311,6 +311,10 @@ export default async function main(container: Container) {
 		prefix: "/api/v1/videocall/intervals",
 	});
 
+	fastify.register(import("./routes/videocall/vacations/index.js"), {
+		prefix: "/api/v1/videocall/vacations",
+	});
+
 	fastify.register(import("./routes/videocall/settings/index.js"), {
 		prefix: "/api/v1/videocall/settings",
 	});
@@ -326,6 +330,10 @@ export default async function main(container: Container) {
 
 		fastify.register(import("./routes/cameo/settings/index.js"), {
 			prefix: "/api/v1/cameo/settings",
+		});
+
+		fastify.register(import("./routes/cameo/index.js"), {
+			prefix: "/api/v1/cameo",
 		});
 	}
 

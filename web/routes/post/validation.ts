@@ -17,20 +17,7 @@ export const PostCreateReqBodyValidator = Type.Object({
 	type: Type.Enum(PostType),
 	caption: Type.String(),
 	thumbId: Type.Optional(Type.String()),
-	postMedias: Type.Optional(
-		Type.Array(
-			Type.Object({
-				postMediaId: Type.String(),
-				tags: Type.Array(
-					Type.Object({
-						userId: Type.String(),
-						pointX: Type.Number(),
-						pointY: Type.Number(),
-					}),
-				),
-			}),
-		),
-	),
+	mediaIds: Type.Optional(Type.Array(Type.String())),
 	text: Type.Optional(Type.String()),
 	taggedPeoples: Type.Optional(
 		Type.Array(
@@ -146,6 +133,7 @@ export const PostFeedQueryValidator = Type.Object({
 	page: Type.Optional(Type.Number()),
 	size: Type.Optional(Type.Number()),
 	categoryId: Type.Optional(Type.String()),
+	userListId: Type.Optional(Type.String()),
 });
 assert<Equals<Static<typeof PostFeedQueryValidator>, PostFeedQuery>>();
 

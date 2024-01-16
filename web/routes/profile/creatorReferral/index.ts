@@ -556,7 +556,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					),
 					referentCount: cr._count.referredProfiles,
 					visitCount: cr.visitCount,
-					percentage: creatorReferralFee,
+					percentage: creatorReferralFee * 100,
 				}))
 				.sort((a, b) =>
 					sort === CreatorReferralSortType.highest_earnings

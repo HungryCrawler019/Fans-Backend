@@ -989,6 +989,12 @@ export interface IMeetingInterval {
 	length: number;
 }
 
+export interface IMeetingVacation {
+	id: string;
+	startDate: Date;
+	endDate: Date;
+}
+
 export interface ICameoDuration {
 	id: string;
 	length: number;

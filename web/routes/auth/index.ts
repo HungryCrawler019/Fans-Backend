@@ -716,9 +716,7 @@ export default async function routes(
 
 			const account = await prisma.oAuth2LinkedAccount.findFirst({
 				where: {
-					provider: provider.startsWith("google")
-						? "google"
-						: provider,
+					provider: provider,
 					accountId: oauthProfile.id,
 				},
 			});
@@ -788,9 +786,7 @@ export default async function routes(
 				prisma.oAuth2LinkedAccount.create({
 					data: {
 						id: snowflake.gen(),
-						provider: provider.startsWith("google")
-							? "google"
-							: provider,
+						provider: provider,
 						accountId: oauthProfile.id,
 						name: oauthProfile.name,
 						email: oauthProfile.email,
@@ -853,9 +849,7 @@ export default async function routes(
 
 			const account = await prisma.oAuth2LinkedAccount.findFirst({
 				where: {
-					provider: provider.startsWith("google")
-						? "google"
-						: provider,
+					provider: provider,
 					accountId: oauthProfile.id,
 				},
 			});
@@ -867,9 +861,7 @@ export default async function routes(
 			const created = await prisma.oAuth2LinkedAccount.create({
 				data: {
 					id: snowflake.gen(),
-					provider: provider.startsWith("google")
-						? "google"
-						: provider,
+					provider: provider,
 					accountId: oauthProfile.id,
 					name: oauthProfile.name,
 					email: oauthProfile.email.toLowerCase(),

@@ -1771,6 +1771,9 @@ export default async function routes(
 				case "net.authorize.payment.fraud.held":
 					status = TransactionStatus.Disputed;
 					break;
+				case "net.authorize.payment.priorAuthCapture.created":
+					status = TransactionStatus.Pending;
+					break;
 			}
 
 			switch (eventType) {
@@ -2304,46 +2307,67 @@ export default async function routes(
 
 				return reply.send({ success: true });
 			} else if (!paymentSubscriptionTransaction) {
-				const [gemTransaction, paidPostTransaction, cameoPayment] =
-					await Promise.all([
-						prisma.gemTransaction.findUnique({
-							where: { transactionId: refTransId },
-							select: {
-								id: true,
-								userId: true,
-								user: { select: { email: true } },
-								amount: true,
-								status: true,
-							},
-						}),
-						prisma.paidPostTransaction.findUnique({
-							where: { transactionId: refTransId },
-							select: {
-								id: true,
-								userId: true,
-								user: { select: { email: true } },
-								creator: true,
-								creatorId: true,
-								amount: true,
-								status: true,
-								fanReferralCode: true,
-							},
-						}),
-						prisma.cameoPayment.findUnique({
-							where: { transactionId: refTransId },
-							select: {
-								id: true,
-								userId: true,
-								user: { select: { email: true } },
-								creator: true,
-								creatorId: true,
-								amount: true,
-								status: true,
-							},
-						}),
-					]);
+				const [
+					gemTransaction,
+					paidPostTransaction,
+					cameoPayment,
+					videoCallPurchase,
+				] = await Promise.all([
+					prisma.gemTransaction.findUnique({
+						where: { transactionId: refTransId },
+						select: {
+							id: true,
+							userId: true,
+							user: { select: { email: true } },
+							amount: true,
+							status: true,
+						},
+					}),
+					prisma.paidPostTransaction.findUnique({
+						where: { transactionId: refTransId },
+						select: {
+							id: true,
+							userId: true,
+							user: { select: { email: true } },
+							creator: true,
+							creatorId: true,
+							amount: true,
+							status: true,
+							fanReferralCode: true,
+						},
+					}),
+					prisma.cameoPayment.findUnique({
+						where: { transactionId: refTransId },
+						select: {
+							id: true,
+							userId: true,
+							user: { select: { email: true } },
+							creator: true,
+							creatorId: true,
+							amount: true,
+							status: true,
+						},
+					}),
+					prisma.videoCallPurchase.findUnique({
+						where: { transactionId: refTransId },
+						select: {
+							id: true,
+							fanId: true,
+							fan: { select: { email: true } },
+							creator: true,
+							creatorId: true,
+							amount: true,
+							status: true,
+						},
+					}),
+				]);
 
-				if (!gemTransaction && !paidPostTransaction && !cameoPayment) {
+				if (
+					!gemTransaction &&
+					!paidPostTransaction &&
+					!cameoPayment &&
+					!videoCallPurchase
+				) {
 					return reply.send({ success: true }); // ignore
 				}
 
@@ -2820,6 +2844,119 @@ export default async function routes(
 					if (status === TransactionStatus.Disputed) {
 						await siftChargeback({
 							id: cameoPayment.userId.toString(),
+						});
+					}
+				} else if (videoCallPurchase) {
+					if (status) {
+						await prisma.popupStatus.upsert({
+							where: { userId: videoCallPurchase.fanId },
+							update: {
+								showNoticeChargeBackDialog:
+									status === TransactionStatus.Disputed,
+							},
+							create: {
+								id: snowflake.gen(),
+								userId: videoCallPurchase.fanId,
+								showNoticeChargeBackDialog:
+									status === TransactionStatus.Disputed,
+							},
+						});
+
+						await prisma.videoCallPurchase.update({
+							where: { id: videoCallPurchase.id },
+							data: { status: status },
+						});
+
+						if (
+							status === TransactionStatus.Successful &&
+							videoCallPurchase.status !==
+								TransactionStatus.Successful
+						) {
+							await prisma.$transaction(async (prisma) => {
+								const creatorBalance =
+									await prisma.balance.findFirst({
+										where: {
+											profileId:
+												videoCallPurchase.creatorId,
+										},
+									});
+
+								const { netAmount } =
+									feesCalculator.creatorVideoCallPurchaseFee(
+										videoCallPurchase.amount,
+										videoCallPurchase.creator.platformFee,
+									);
+
+								await prisma.balance.update({
+									where: { id: creatorBalance?.id },
+									data: {
+										amount: {
+											increment: netAmount.getAmount(),
+										},
+									},
+								});
+							});
+
+							// await xpService.addXPLog(
+							//  "Purchase",
+							//  videoCallPurchase.amount,
+							//  videoCallPurchase.fanId,
+							//  videoCallPurchase.creatorId,
+							// );
+						}
+					}
+
+					if (status === TransactionStatus.Successful) {
+						await siftTransaction(
+							videoCallPurchase.id.toString(),
+							{
+								id: videoCallPurchase.fanId.toString(),
+								email: videoCallPurchase.fan.email,
+							},
+							"$sale",
+							videoCallPurchase.amount,
+							"$success",
+							{
+								id: videoCallPurchase.creatorId.toString(),
+							},
+						);
+					}
+
+					if (status === TransactionStatus.Failed) {
+						await siftTransaction(
+							videoCallPurchase.id.toString(),
+							{
+								id: videoCallPurchase.fanId.toString(),
+								email: videoCallPurchase.fan.email,
+							},
+							"$sale",
+							videoCallPurchase.amount,
+							"$failure",
+							{
+								id: videoCallPurchase.creatorId.toString(),
+							},
+						);
+					}
+
+					if (status === TransactionStatus.Refunded) {
+						await siftTransaction(
+							videoCallPurchase.id.toString(),
+							{
+								id: videoCallPurchase.fanId.toString(),
+								email: videoCallPurchase.fan.email,
+							},
+							"$refund",
+							videoCallPurchase.amount,
+							"$success",
+							{
+								id: videoCallPurchase.creatorId.toString(),
+							},
+						);
+					}
+
+					if (status === TransactionStatus.Disputed) {
+						await siftChargeback({
+							id: videoCallPurchase.fanId.toString(),
 						});
 					}
 				}

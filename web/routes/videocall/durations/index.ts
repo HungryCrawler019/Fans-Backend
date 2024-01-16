@@ -57,7 +57,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				data: {
 					id: snowflake.gen(),
 					length: request.body.length,
-					price: Number(request.body.price).toFixed(2),
+					price: Number(Number(request.body.price).toFixed(2)),
 					currency: request.body.currency,
 					creatorId: creator.id,
 					isEnabled: request.body.isEnabled ?? true,
@@ -160,7 +160,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				where: { id: BigInt(request.params.id), creatorId: creator.id },
 				data: {
 					length: request.body.length,
-					price: Number(request.body.price).toFixed(2),
+					price: Number(Number(request.body.price).toFixed(2)),
 					currency: request.body.currency,
 					isEnabled: request.body.isEnabled ?? true,
 				},
@@ -196,7 +196,11 @@ export default async function routes(fastify: FastifyTypebox) {
 				data: {
 					...(length !== undefined ? { length } : {}),
 					...(price !== undefined
-						? { price: Number(request.body.price).toFixed(2) }
+						? {
+								price: Number(
+									Number(request.body.price).toFixed(2),
+								),
+						  }
 						: {}),
 					...(currency !== undefined ? { currency } : {}),
 					...(isEnabled !== undefined ? { isEnabled } : {}),

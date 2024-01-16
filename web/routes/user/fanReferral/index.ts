@@ -47,6 +47,7 @@ export default async function routes(fastify: FastifyTypebox) {
 	const prisma = await container.resolve(PrismaService);
 	const snowflake = await container.resolve(SnowflakeService);
 	const sessionManager = await container.resolve(SessionManagerService);
+	const maxObjectLimit = parseInt(process.env.MAX_OBJECT_LIMIT ?? "100");
 
 	const generateReferralCode = async () => {
 		for (let i = 0; i < 10000; i++) {
@@ -80,6 +81,14 @@ export default async function routes(fastify: FastifyTypebox) {
 			});
 			if (!profile) {
 				return reply.sendError(APIErrors.ITEM_NOT_FOUND("Profile"));
+			}
+
+			const existedCount = await prisma.fanReferral.count({
+				where: { userId: BigInt(session.userId) },
+			});
+
+			if (existedCount >= maxObjectLimit) {
+				return reply.sendError(APIErrors.REACHED_MAX_OBJECT_LIMIT);
 			}
 
 			const existed = code

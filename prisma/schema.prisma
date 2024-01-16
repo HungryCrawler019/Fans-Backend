@@ -218,7 +218,7 @@ model User {
     pollVotes                       PollVote[]
     meetings                        MeetingUser[]
     banLog                          BanLog[]
-    postMediaTags                   PostMediaTag[]
+    videoCallPurchases              VideoCallPurchase[]
 
     @@index([username], type: BTree)
     @@index([displayName], type: BTree)
@@ -394,16 +394,18 @@ model ProcessedWebhookEvent {
 }
 
 model PaymentMethod {
-    id                      BigInt                    @id
-    user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId                  BigInt
-    provider                PaymentProvider
-    token                   String
-    updatedAt               DateTime                  @updatedAt
-    paymentSubscription     PaymentSubscription[]
-    paidPostTransaction     PaidPostTransaction[]
-    cameoPayment            CameoPayment[]
-    chatPaidPostTransaction ChatPaidPostTransaction[]
+    id                              BigInt                           @id
+    user                            User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId                          BigInt
+    provider                        PaymentProvider
+    token                           String
+    updatedAt                       DateTime                         @updatedAt
+    paymentSubscription             PaymentSubscription[]
+    paidPostTransaction             PaidPostTransaction[]
+    cameoPayment                    CameoPayment[]
+    chatPaidPostTransaction         ChatPaidPostTransaction[]
+    videoCallPurchases              VideoCallPurchase[]
+    videoCallTimeExtensionPurchases VideoCallTimeExtensionPurchase[]
 
     @@index([userId], type: BTree)
     @@index([provider], type: Hash)
@@ -672,6 +674,8 @@ model Profile {
     MeetingSettings                     MeetingSettings?
     customVideoDurations                CustomVideoDuration[]
     CustomVideoSettings                 CustomVideoSettings[]
+    videoCallPurchase                   VideoCallPurchase[]
+    meetingVacations                    MeetingVacation[]
 
     @@index([userId], type: BTree)
     @@index([displayName], type: BTree)
@@ -1441,8 +1445,6 @@ model PostMedia {
     postId    BigInt
     updatedAt DateTime @updatedAt
 
-    postMediaTags PostMediaTag[]
-
     @@index([uploadId], type: BTree)
     @@index([postId], type: BTree)
     @@map("post_medias")
@@ -1898,21 +1900,6 @@ model TaggedPeople {
     @@map("tagged_peoples")
 }
 
-model PostMediaTag {
-    id          BigInt    @id
-    postMedia   PostMedia @relation(fields: [postMediaId], references: [id], onDelete: Cascade)
-    postMediaId BigInt
-    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId      BigInt
-    pointX      Int       @default(0)
-    pointY      Int       @default(0)
-    updatedAt   DateTime  @default(now()) @updatedAt
-
-    @@index([postMediaId], type: BTree)
-    @@index([userId], type: BTree)
-    @@map("post_media_tag")
-}
-
 model Highlight {
     id        BigInt   @id
     profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -2154,16 +2141,18 @@ enum MeetingType {
 }
 
 model Meeting {
-    id                BigInt        @id
-    host              Profile       @relation("meetingHost", fields: [hostId], references: [id], onDelete: Cascade)
-    hostId            BigInt
-    startDate         DateTime
-    endDate           DateTime
-    chimeMeetingId    String?
-    chimeRequestToken String        @default("")
-    prepareJobId      String?
-    cleanJobId        String?
-    users             MeetingUser[]
+    id                              BigInt                           @id
+    host                            Profile                          @relation("meetingHost", fields: [hostId], references: [id], onDelete: Cascade)
+    hostId                          BigInt
+    startDate                       DateTime
+    endDate                         DateTime
+    chimeMeetingId                  String?
+    chimeRequestToken               String                           @default("")
+    prepareJobId                    String?
+    cleanJobId                      String?
+    users                           MeetingUser[]
+    videoCallPurchases              VideoCallPurchase[]
+    videoCallTimeExtensionPurchases VideoCallTimeExtensionPurchase[]
 
     @@index([hostId], type: BTree)
     @@index([startDate], type: BTree)
@@ -2201,10 +2190,11 @@ model MeetingDuration {
     length    Int
     creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
     creatorId BigInt
-    price     Decimal
+    price     Int
     currency  String
     isEnabled Boolean @default(true)
 
+    @@unique([creatorId, length])
     @@index([creatorId], type: BTree)
     @@index([length], type: BTree)
     @@index([price], type: BTree)
@@ -2258,10 +2248,21 @@ model MeetingSettings {
     notificationReminders     Boolean              @default(true)
     notificationsByEmail      Boolean              @default(true)
     notificationsByPhone      Boolean              @default(true)
-    videoCallsEnabled         Boolean              @default(true)
+    videoCallsEnabled         Boolean              @default(false)
 
     @@id([profileId])
     @@map("meeting_settings")
+}
+
+model MeetingVacation {
+    id        BigInt   @id
+    creator   Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    startDate DateTime
+    endDate   DateTime
+
+    @@index([creatorId], type: BTree)
+    @@map("meeting_vacations")
 }
 
 model CustomVideoDuration {
@@ -2269,7 +2270,7 @@ model CustomVideoDuration {
     length    Int
     creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
     creatorId BigInt
-    price     Decimal
+    price     Int
     currency  String
     isEnabled Boolean @default(true)
 
@@ -2312,4 +2313,57 @@ model CustomVideoSettings {
 
     @@id([profileId])
     @@map("custom_video_settings")
+}
+
+model VideoCallPurchase {
+    id               BigInt            @id
+    meeting          Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    meetingId        BigInt
+    fan              User              @relation(fields: [fanId], references: [id], onDelete: Cascade)
+    fanId            BigInt
+    creator          Profile           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId        BigInt
+    paymentMethod    PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId  BigInt?
+    paymentProfileId String?
+    transactionId    String?           @unique
+    provider         PaymentProvider?
+    amount           Int
+    processingFee    Int
+    platformFee      Int
+    vatFee           Int?
+    currency         String            @default("USD")
+    status           TransactionStatus
+    error            String?
+    createdAt        DateTime          @default(now())
+
+    @@index([meetingId], type: BTree)
+    @@index([fanId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@map("video_call_purchases")
+}
+
+model VideoCallTimeExtensionPurchase {
+    id               BigInt            @id
+    meeting          Meeting           @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    meetingId        BigInt
+    additionalTime   Int
+    paymentMethod    PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId  BigInt?
+    paymentProfileId String?
+    transactionId    String?           @unique
+    provider         PaymentProvider?
+    amount           Int
+    processingFee    Int
+    platformFee      Int
+    vatFee           Int?
+    currency         String            @default("USD")
+    status           TransactionStatus
+    error            String?
+    createdAt        DateTime          @default(now())
+
+    @@index([meetingId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@map("video_call_time_extension_purchases")
 }

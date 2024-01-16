@@ -61,6 +61,7 @@ import {
 	WeekDay,
 	MeetingDuration,
 	CustomVideoDuration,
+	MeetingVacation,
 } from "@prisma/client";
 import {
 	IApplication,
@@ -123,6 +124,7 @@ import {
 	IMeetingInterval,
 	IMeetingDuration,
 	Media,
+	IMeetingVacation,
 } from "../CommonAPISchemas.js";
 import SnowflakeService from "../../common/service/SnowflakeService.js";
 import { PostAdvanced } from "../routes/post/schemas.js";
@@ -1236,6 +1238,14 @@ export class ModelConverter {
 					.toFormat("HH:mm:ss") + "Z",
 			length: data.length,
 			day: ModelConverter.weekDay2Index(data.day),
+		};
+	}
+
+	static toIMeetingVacation(data: MeetingVacation): IMeetingVacation {
+		return {
+			id: data.id.toString(),
+			startDate: data.startDate,
+			endDate: data.endDate,
 		};
 	}
 

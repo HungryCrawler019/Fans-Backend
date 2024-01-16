@@ -7,7 +7,11 @@ export interface CreateMeetingBody {
 	hostId: string;
 	startDate: string;
 	duration: number;
-	paymentToken?: string;
+	customerPaymentProfileId?: string;
+}
+
+export interface AcceptMeetingParams {
+	meetingId: string;
 }
 
 export interface MeetingsQuery {

@@ -136,6 +136,27 @@ export default async function routes(fastify: FastifyTypebox) {
 				});
 			});
 
+			// Check vacations
+			const vacations = await prisma.meetingVacation.findMany({
+				where: { creatorId: creator.id },
+			});
+			vacations.forEach((vacation) => {
+				const vacationInterval = Interval.fromDateTimes(
+					DateTime.fromJSDate(vacation.startDate),
+					DateTime.fromJSDate(vacation.endDate),
+				);
+
+				responseIntervals = responseIntervals.filter((rsInterval) => {
+					const rsTimeInterval = Interval.after(
+						DateTime.fromISO(rsInterval.startDate),
+						{ minute: rsInterval.duration },
+					);
+
+					return !vacationInterval.intersection(rsTimeInterval)
+						?.isValid;
+				});
+			});
+
 			return reply.send({ intervals: responseIntervals });
 		},
 	);

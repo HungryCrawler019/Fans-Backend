@@ -1,5 +1,6 @@
 import { Logger } from "pino";
 import { DateTime, Interval } from "luxon";
+import { MeetingInterval } from "@prisma/client";
 import PrismaService from "../../../../common/service/PrismaService.js";
 import SessionManagerService, {
 	Session,
@@ -12,6 +13,52 @@ import { CreateMeetingIntervalBodyValidator } from "./validation.js";
 import { ModelConverter } from "../../../models/modelConverter.js";
 import APIErrors from "../../../errors/index.js";
 import SnowflakeService from "../../../../common/service/SnowflakeService.js";
+
+const checkIntervalsConflict = (
+	intervals: MeetingInterval[],
+	timeInterval: Interval,
+) => {
+	const startDateTime = timeInterval.start!;
+
+	return !intervals.some((existingInterval) => {
+		const start = DateTime.fromJSDate(existingInterval.startTime)
+			.toUTC()
+			.set({
+				year: startDateTime.year,
+				month: startDateTime.month,
+				day: startDateTime.day,
+			})
+			.set({
+				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1,
+			});
+		const end = DateTime.fromJSDate(existingInterval.startTime)
+			.toUTC()
+			.set({
+				year: startDateTime.year,
+				month: startDateTime.month,
+				day: startDateTime.day,
+			})
+			.set({
+				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1,
+			})
+			.plus({ minute: existingInterval.length });
+		const exitingTimeInterval = Interval.fromDateTimes(start, end);
+		const existingTimeIntervalPlusWeek = Interval.fromDateTimes(
+			start.plus({ week: 1 }),
+			end.plus({ week: 1 }),
+		);
+		const existingIntervalMinusWeek = Interval.fromDateTimes(
+			start.minus({ week: 1 }),
+			end.minus({ week: 1 }),
+		);
+
+		return (
+			timeInterval.intersection(exitingTimeInterval)?.isValid ||
+			timeInterval.intersection(existingTimeIntervalPlusWeek)?.isValid ||
+			timeInterval.intersection(existingIntervalMinusWeek)?.isValid
+		);
+	});
+};
 
 export default async function routes(fastify: FastifyTypebox) {
 	const { container } = fastify;
@@ -57,60 +104,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					creatorId: creator.id,
 				},
 			});
-			if (
-				existingIntervals.some((existingInterval) => {
-					const start = DateTime.fromJSDate(
-						existingInterval.startTime,
-					)
-						.toUTC()
-						.set({
-							year: startDateTime.year,
-							month: startDateTime.month,
-							day: startDateTime.day,
-						})
-						.set({
-							weekday:
-								ModelConverter.weekDay2Index(
-									existingInterval.day,
-								) + 1,
-						});
-					const end = DateTime.fromJSDate(existingInterval.startTime)
-						.toUTC()
-						.set({
-							year: startDateTime.year,
-							month: startDateTime.month,
-							day: startDateTime.day,
-						})
-						.set({
-							weekday:
-								ModelConverter.weekDay2Index(
-									existingInterval.day,
-								) + 1,
-						})
-						.plus({ minute: existingInterval.length });
-					const exitingTimeInterval = Interval.fromDateTimes(
-						start,
-						end,
-					);
-					const existingTimeIntervalPlusWeek = Interval.fromDateTimes(
-						start.plus({ week: 1 }),
-						end.plus({ week: 1 }),
-					);
-					const existingIntervalMinusWeek = Interval.fromDateTimes(
-						start.minus({ week: 1 }),
-						end.minus({ week: 1 }),
-					);
-
-					return (
-						timeInterval.intersection(exitingTimeInterval)
-							?.isValid ||
-						timeInterval.intersection(existingTimeIntervalPlusWeek)
-							?.isValid ||
-						timeInterval.intersection(existingIntervalMinusWeek)
-							?.isValid
-					);
-				})
-			) {
+			if (!checkIntervalsConflict(existingIntervals, timeInterval)) {
 				return reply.sendError(APIErrors.INTERVAL_CONFLICT);
 			}
 
@@ -175,6 +169,67 @@ export default async function routes(fastify: FastifyTypebox) {
 			if (!interval) {
 				return reply.sendError(APIErrors.INTERVAL_NOT_FOUND);
 			}
+
+			return reply.send(ModelConverter.toIMeetingInterval(interval));
+		},
+	);
+
+	fastify.put<{ Body: CreateMeetingIntervalBody; Params: IdParams }>(
+		"/:id",
+		{
+			schema: {
+				body: CreateMeetingIntervalBodyValidator,
+				params: IdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+				sessionManager.requireProfileHandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session as Session;
+			const creator = (await session.getProfile(prisma))!;
+
+			const startDateTime = DateTime.fromISO(request.body.startTime)
+				.set({
+					weekday: request.body.day + 1,
+				})
+				.toUTC();
+
+			const endDateTime = startDateTime.plus({
+				minutes: request.body.length,
+			});
+			const timeInterval = Interval.fromDateTimes(
+				startDateTime,
+				endDateTime,
+			);
+			if (!timeInterval.isValid) {
+				return reply.sendError(APIErrors.INVALID_INTERVAL);
+			}
+
+			const existingIntervals = await prisma.meetingInterval.findMany({
+				where: {
+					creatorId: creator.id,
+				},
+			});
+			const otherIntervals = existingIntervals.filter(
+				({ id }) => id !== BigInt(request.params.id),
+			);
+			if (!checkIntervalsConflict(otherIntervals, timeInterval)) {
+				return reply.sendError(APIErrors.INTERVAL_CONFLICT);
+			}
+
+			const interval = await prisma.meetingInterval.update({
+				where: { id: BigInt(request.params.id) },
+				data: {
+					startTime: startDateTime.toJSDate(),
+					day: ModelConverter.index2WeekDay(
+						startDateTime.weekday - 1,
+					),
+					length: request.body.length,
+				},
+			});
 
 			return reply.send(ModelConverter.toIMeetingInterval(interval));
 		},

@@ -55,7 +55,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				data: {
 					id: snowflake.gen(),
 					length: request.body.length,
-					price: Number(request.body.price).toFixed(2),
+					price: Number(Number(request.body.price).toFixed(2)),
 					currency: request.body.currency,
 					creatorId: creator.id,
 					isEnabled: request.body.isEnabled ?? true,

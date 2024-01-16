@@ -7,8 +7,8 @@ import {
 } from "./schemas.js";
 
 export const CreateMeetingDurationBodyValidator = Type.Object({
-	length: Type.Integer({ maximum: 3 * 60, multipleOf: 15 }),
-	price: Type.Number(),
+	length: Type.Integer({ maximum: 3 * 60, multipleOf: 5 }),
+	price: Type.Number({ minimum: 0 }),
 	currency: Type.String({ pattern: "^usd$" }),
 	isEnabled: Type.Optional(Type.Boolean()),
 });
@@ -20,8 +20,8 @@ assert<
 >();
 
 export const UpdadteMeetingDurationBodyValidator = Type.Object({
-	length: Type.Optional(Type.Integer({ maximum: 3 * 60, multipleOf: 15 })),
-	price: Type.Optional(Type.Number()),
+	length: Type.Optional(Type.Integer({ maximum: 3 * 60, multipleOf: 5 })),
+	price: Type.Optional(Type.Number({ minimum: 0 })),
 	currency: Type.Optional(Type.String({ pattern: "^usd$" })),
 	isEnabled: Type.Optional(Type.Boolean()),
 });

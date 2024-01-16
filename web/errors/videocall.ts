@@ -92,4 +92,11 @@ export const videocallAPIErrors = {
 			message: "Meeting settings not found",
 		},
 	},
+	MEETING_VACATION_CONFLICT: {
+		status: 400,
+		data: {
+			code: errorCode(ErrorSource.Meeting, 14),
+			message: "Meeting conflicts with creator's vacation",
+		},
+	},
 };

@@ -664,9 +664,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						OR: [
 							{ ageVerifyId: null },
 							{
-								ageVerifyStatus: {
-									not: AgeVerifyStatus.APPROVED,
-								},
+								ageVerifyStatus: AgeVerifyStatus.APPROVED,
 							},
 						],
 					},
@@ -701,9 +699,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						OR: [
 							{ ageVerifyId: null },
 							{
-								ageVerifyStatus: {
-									not: AgeVerifyStatus.APPROVED,
-								},
+								ageVerifyStatus: AgeVerifyStatus.APPROVED,
 							},
 						],
 					},
