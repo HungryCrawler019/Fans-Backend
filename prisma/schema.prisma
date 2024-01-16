@@ -1,0 +1,2315 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider        = "prisma-client-js"
+    previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum UserType {
+    Creator
+    Fan
+}
+
+enum XPActionType {
+    Multiple
+    Add
+}
+
+enum SubscriptionType {
+    Tier
+    Flat
+}
+
+enum CampaignType {
+    NEW
+    EXISTING
+    BOTH
+}
+
+enum PromotionType {
+    Free_Trial
+    Discount
+}
+
+enum PostType {
+    Video
+    Photo
+    Text
+    Audio
+    Fundraiser
+    Poll
+}
+
+enum UploadType {
+    Video
+    Image
+    Audio
+    Form
+}
+
+enum GenderType {
+    Male
+    Female
+    NonBinary
+    Other
+}
+
+enum LanguageType {
+    English
+    Russian
+}
+
+enum ReportStatus {
+    OPEN
+    IN_REVIEW
+    ACCEPTED
+    IGNORED
+}
+
+enum CommentStatus {
+    VISIBLE
+    HIDDEN
+    SHADOW_BANNED
+}
+
+enum AgeVerifyStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    CANCELLED
+}
+
+// Represents backing storage for an upload
+enum UploadStorageType {
+    S3
+    CLOUDFLARE_STREAM
+}
+
+// Represents purpose of an upload, for filtering them in endpoints
+enum UploadUsageType {
+    POST // Used in posts, stories, comments, etc.
+    CHAT // Used for chat messages, unlisted
+}
+
+enum PostReportFlag {
+    ILLEGAL_CONTENT
+    UNDERAGE_CONTENT
+    GRAPHIC_VOILENCE_OR_GORE
+    HARASSMENT_OR_BULLYING
+    SELF_HARM_OR_SUICIDE_CONTENT
+    NON_CONSENSUAL_CONTENT
+    SPAM_OR_SCAM
+    INFRINGEMENT_OF_MY_COPYRIGHT
+    OTHER
+}
+
+enum StoryReportFlag {
+    ILLEGAL_CONTENT
+    UNDERAGE_CONTENT
+    GRAPHIC_VOILENCE_OR_GORE
+    HARASSMENT_OR_BULLYING
+    SELF_HARM_OR_SUICIDE_CONTENT
+    NON_CONSENSUAL_CONTENT
+    SPAM_OR_SCAM
+    INFRINGEMENT_OF_MY_COPYRIGHT
+    OTHER
+}
+
+enum ProfileReportFlag {
+    ILLEGAL_CONTENT
+    UNDERAGE_USER
+    IMPERSONATION_OR_IDENTITY_THEFT
+    PROMOTING_HATE_SPEECH_OR_DISCRIMINATION
+    PROMOTING_DANGEROUS_BEHAVIORS
+    INVOLVED_IN_SPAN_OR_SCAM_ACTIVITIES
+    INFRINGEMENT_OF_MY_COPYRIGHT
+    OTHER
+}
+
+enum CreatorReferralTransactionType {
+    Tip
+    Subscription
+    PaidPost
+}
+
+enum FanReferralTransactionType {
+    Tip
+    Subscription
+    PaidPost
+}
+
+model User {
+    id               BigInt           @id
+    username         String
+    displayName      String
+    phonenumber      String?
+    email            String           @unique
+    password         String
+    avatar           String?
+    country          String?
+    language         LanguageType     @default(English)
+    gender           GenderType?
+    birthdate        DateTime?
+    disabled         Boolean          @default(false)
+    isShowProfile    Boolean          @default(false)
+    type             UserType         @default(Fan)
+    verifiedAt       DateTime?
+    activeUserList   UserList?        @relation(fields: [activeUserListId], references: [id], onDelete: Cascade)
+    activeUserListId BigInt?          @unique
+    updatedAt        DateTime         @updatedAt
+    ageVerifyId      String?
+    ageVerifyKycId   String?
+    ageVerifyStatus  AgeVerifyStatus?
+    ageVerifyReason  String?
+    settings         Json?
+
+    paymentMethods                  PaymentMethod[]
+    gems                            GemsBalance[]
+    gemsSpent                       GemsSpendingLog[]                @relation("GemsSpendingLogsSpender")
+    paymentSubscriptions            PaymentSubscription[]            @relation("SubscriptionUser")
+    paymentSubscriptionTransactions PaymentSubscriptionTransaction[] @relation("PaymentSubscriptionUser")
+    paidPostTransactions            PaidPostTransaction[]            @relation("PaidPostTransactionUser")
+    cameoPayment                    CameoPayment[]                   @relation("CameoPaymentUser")
+    levels                          UserLevel[]
+    xpLogs                          XPLog[]                          @relation("xpOwner")
+    xpVerifies                      XPLog[]                          @relation("xpVerifier")
+    otpCodes                        OTPCode[]
+    profile                         Profile?
+    uploads                         Upload[]
+    postReports                     PostReport[]
+    storyReports                    StoryReport[]
+    profileReports                  ProfileReport[]
+    commentReports                  CommentReport[]
+    userLists                       UserList[]                       @relation("listOwner")
+    comments                        Comment[]
+    storyLikes                      StoryLike[]
+    storyComments                   StoryComment[]
+    storyCommentLikes               StoryCommentLike[]
+    commentLikes                    CommentLike[]
+    linkedAccounts                  OAuth2LinkedAccount[]
+    messageChannels                 MessageChannelParticipant[]
+    storyViewers                    StoryViewer[]
+    limitUsers                      LimitUser[]
+    userReports                     UserReport[]
+    taggedPosts                     TaggedPeople[]
+    bookmarks                       Bookmark[]
+    hiddenPosts                     HiddenPost[]
+    hiddenStories                   HiddenStory[]
+    blockCreators                   BlockedCreator[]
+    application                     Application[]
+    postLikes                       PostLike[]
+    notification                    Notification[]
+    notificationUser                NotificationUser[]
+    messageChannelInbox             MessageChannelInbox[]
+    fanReferrals                    FanReferral[]
+    popupStatus                     PopupStatus?
+    gemTransactions                 GemTransaction[]
+    chatPaidPostTransaction         ChatPaidPostTransaction[]        @relation("ChatPaidPostTransactionUser")
+    notificationsSettings           NotificationsSettings?
+    userPosts                       UserPost[]
+    referentFanReferralTransactions FanReferralTransaction[]         @relation("ReferentFanReferralTransaction")
+    referrerFanReferralTransactions FanReferralTransaction[]         @relation("ReferrerFanReferralTransaction")
+    pollVotes                       PollVote[]
+    meetings                        MeetingUser[]
+    banLog                          BanLog[]
+    postMediaTags                   PostMediaTag[]
+
+    @@index([username], type: BTree)
+    @@index([displayName], type: BTree)
+    @@index([email], type: BTree)
+    @@index([country], type: BTree)
+    @@index([language], type: Hash)
+    @@index([disabled], type: Hash)
+    @@index([type], type: Hash)
+    @@index([verifiedAt], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([ageVerifyId], type: BTree)
+    @@index([ageVerifyKycId], type: BTree)
+    @@map("users")
+}
+
+model BanLog {
+    id        BigInt   @id
+    user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+    userId    BigInt
+    adminId   String
+    event     String
+    reason    String
+    createdAt DateTime @default(now())
+
+    @@index([userId], type: BTree)
+    @@index([createdAt], type: BTree)
+    @@map("ban_logs")
+}
+
+model AdminUser {
+    id        BigInt   @id
+    username  String
+    password  String
+    roles     String[]
+    updatedAt DateTime @updatedAt
+}
+
+model PopupStatus {
+    id                           BigInt  @id
+    user                         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId                       BigInt  @unique
+    loggedIn                     Boolean @default(false)
+    showNoticeChargeBackDialog   Boolean @default(false)
+    showFairTransactionDialog    Boolean @default(false)
+    showManageSubscriptionDialog Boolean @default(false)
+
+    @@map("popup_status")
+}
+
+model Balance {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    amount    Int      @default(0)
+    currency  String   @default("USD")
+    updatedAt DateTime @updatedAt
+
+    @@index([profileId], type: BTree)
+    @@index([amount], type: BTree)
+    @@index([currency], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("balances")
+}
+
+enum SpendingType {
+    Tip
+    Cameo
+}
+
+model GemsSpendingLog {
+    id              BigInt            @id
+    spender         User              @relation("GemsSpendingLogsSpender", fields: [spenderId], references: [id], onDelete: Cascade)
+    spenderId       BigInt
+    creator         Profile           @relation("GemsSpendingLogsToCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId       BigInt
+    type            SpendingType
+    message         String?
+    amount          Int
+    platformFee     Int
+    processingFee   Int
+    currency        String            @default("USD")
+    status          TransactionStatus @default(Successful)
+    fanReferral     FanReferral?      @relation(fields: [fanReferralCode], references: [code], onDelete: Cascade)
+    fanReferralCode String?
+    updatedAt       DateTime          @updatedAt
+    createdAt       DateTime          @default(now())
+
+    @@index([spenderId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([type], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([platformFee], type: BTree)
+    @@index([processingFee], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@index([createdAt], type: BTree)
+    @@map("gems_spending_logs")
+}
+
+model GemsBalance {
+    id        BigInt   @id
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    amount    Int      @default(0)
+    currency  String   @default("USD")
+    updatedAt DateTime @updatedAt
+
+    transactions GemTransaction[]
+
+    @@index([userId], type: BTree)
+    @@index([amount], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("gems_balances")
+}
+
+enum PaymentProvider {
+    Stripe
+    PayPal
+    AuthorizeNet
+    Bank
+}
+
+enum TransactionStatus {
+    Initialized // The transaction has been created but not yet submitted
+    Submitted // The transaction has been submitted but not yet confirmed by the payment provider
+    Pending // The transaction has been confirmed by the payment provider and is waiting to be processed
+    Successful // The transaction was processed successfully
+    Failed // The transaction failed due to an error
+    Refunded // The transaction was successful, but was later refunded
+    Disputed // The transaction is under dispute
+    Reversed // The transaction was reversed by the payment provider
+    Cancelled // The transaction was cancelled by the user or system
+}
+
+model GemTransaction {
+    id            BigInt            @id
+    balance       GemsBalance       @relation(fields: [balanceId], references: [id], onDelete: Cascade)
+    balanceId     BigInt
+    user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId        BigInt
+    provider      PaymentProvider
+    transactionId String?           @unique
+    amount        Int
+    processingFee Int
+    platformFee   Int
+    vatFee        Int?
+    currency      String            @default("USD")
+    status        TransactionStatus
+    error         String?
+    updatedAt     DateTime          @updatedAt
+
+    @@index([balanceId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([transactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([processingFee], type: BTree)
+    @@index([platformFee], type: BTree)
+    @@index([vatFee], type: Hash)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("gem_transactions")
+}
+
+model ProcessedWebhookEvent {
+    id        String   @id
+    createdAt DateTime @default(now())
+
+    @@index([createdAt], type: BTree)
+    @@map("processed_webhook_events")
+}
+
+model PaymentMethod {
+    id                      BigInt                    @id
+    user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId                  BigInt
+    provider                PaymentProvider
+    token                   String
+    updatedAt               DateTime                  @updatedAt
+    paymentSubscription     PaymentSubscription[]
+    paidPostTransaction     PaidPostTransaction[]
+    cameoPayment            CameoPayment[]
+    chatPaidPostTransaction ChatPaidPostTransaction[]
+
+    @@index([userId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([token], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("payment_methods")
+}
+
+enum SubscriptionStatus {
+    Initialized
+    Submitted
+    Pending
+    Active
+    Paused
+    Terminated
+    Failed
+    Refunded
+    Disputed
+    Reversed
+    Cancelled
+}
+
+model PaymentSubscription {
+    id                              BigInt                           @id
+    user                            User                             @relation(name: "SubscriptionUser", fields: [userId], references: [id], onDelete: Cascade)
+    userId                          BigInt
+    creator                         Profile                          @relation(name: "SubscriptionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId                       BigInt
+    paymentMethod                   PaymentMethod?                   @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId                 BigInt?
+    paymentProfileId                String?
+    subscription                    Subscription?                    @relation(fields: [subscriptionId], references: [id])
+    subscriptionId                  BigInt?
+    tier                            Tier?                            @relation(fields: [tierId], references: [id])
+    tierId                          BigInt?
+    bundle                          Bundle?                          @relation(fields: [bundleId], references: [id])
+    bundleId                        BigInt?
+    campaign                        Campaign?                        @relation(fields: [campaignId], references: [id])
+    campaignId                      BigInt?
+    transactionId                   String?                          @unique
+    firstPaymentTransactionId       String?                          @unique
+    paymentSubscriptionTransactions PaymentSubscriptionTransaction[]
+    provider                        PaymentProvider?
+    interval                        Int?
+    startDate                       DateTime
+    endDate                         DateTime?
+    amount                          Int
+    processingFee                   Int
+    platformFee                     Int
+    vatFee                          Int?
+    currency                        String                           @default("USD")
+    status                          SubscriptionStatus
+    error                           String?
+    fanReferral                     FanReferral?                     @relation(fields: [fanReferralCode], references: [code], onDelete: SetNull)
+    fanReferralCode                 String?
+    createdAt                       DateTime                         @default(now())
+    updatedAt                       DateTime                         @updatedAt
+
+    @@index([userId], type: BTree)
+    @@index([paymentMethodId], type: BTree)
+    @@index([subscriptionId], type: BTree)
+    @@index([tierId], type: BTree)
+    @@index([bundleId], type: BTree)
+    @@index([campaignId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([transactionId], type: Hash)
+    @@index([firstPaymentTransactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([processingFee], type: BTree)
+    @@index([platformFee], type: BTree)
+    @@index([vatFee], type: Hash)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("payment_subscriptions")
+}
+
+model PaymentSubscriptionTransaction {
+    id                    BigInt              @id
+    user                  User                @relation(name: "PaymentSubscriptionUser", fields: [userId], references: [id], onDelete: Cascade)
+    userId                BigInt
+    creator               Profile             @relation(name: "PaymentSubscriptionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId             BigInt
+    paymentSubscription   PaymentSubscription @relation(fields: [paymentSubscriptionId], references: [id])
+    paymentSubscriptionId BigInt
+    transactionId         String?             @unique
+    amount                Int
+    currency              String              @default("USD")
+    status                TransactionStatus
+    error                 String?
+    createdAt             DateTime            @default(now())
+
+    @@index([userId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([paymentSubscriptionId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([createdAt], type: BTree)
+    @@map("payment_subscription_transactions")
+}
+
+model PaidPostTransaction {
+    id               BigInt            @id
+    user             User              @relation(name: "PaidPostTransactionUser", fields: [userId], references: [id], onDelete: Cascade)
+    userId           BigInt
+    creator          Profile           @relation(name: "PaidPostTransactionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId        BigInt
+    paymentMethod    PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId  BigInt?
+    paymentProfileId String?
+    paidPost         PaidPost          @relation(fields: [paidPostId], references: [id])
+    paidPostId       BigInt
+    transactionId    String?           @unique
+    provider         PaymentProvider?
+    amount           Int
+    processingFee    Int
+    platformFee      Int
+    vatFee           Int?
+    currency         String            @default("USD")
+    status           TransactionStatus
+    error            String?
+    fanReferral      FanReferral?      @relation(fields: [fanReferralCode], references: [code], onDelete: SetNull)
+    fanReferralCode  String?
+    createdAt        DateTime          @default(now())
+
+    @@index([userId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([paidPostId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([createdAt], type: BTree)
+    @@map("paid_post_transactions")
+}
+
+model CameoPayment {
+    id               BigInt            @id
+    user             User              @relation(name: "CameoPaymentUser", fields: [userId], references: [id], onDelete: Cascade)
+    userId           BigInt
+    creator          Profile           @relation(name: "CameoPaymentCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId        BigInt
+    paymentMethod    PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId  BigInt?
+    paymentProfileId String?
+    transactionId    String?           @unique
+    provider         PaymentProvider?
+    amount           Int
+    processingFee    Int
+    platformFee      Int
+    vatFee           Int?
+    currency         String            @default("USD")
+    status           TransactionStatus
+    error            String?
+    createdAt        DateTime          @default(now())
+
+    @@index([userId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([createdAt], type: BTree)
+    @@map("cameo_payments")
+}
+
+model OTPCode {
+    id        BigInt   @id
+    user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt?
+    email     String?
+    code      String
+    updatedAt DateTime @updatedAt
+
+    @@index([code], type: Hash)
+    @@index([userId], type: BTree)
+    @@index([email], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("otp_code")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+/// TODO: Add an expression index to this model once Prisma supports it
+/// CREATE UNIQUE INDEX "profiles_profilelink_lower" ON "profiles"(LOWER("profileLink"));
+model Profile {
+    id                    BigInt           @id
+    user                  User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId                BigInt           @unique
+    displayName           String
+    profileLink           String
+    verified              Boolean          @default(false)
+    disabled              Boolean          @default(false)
+    flags                 Int              @default(0) // bitfield of various flags
+    bio                   String           @db.Text
+    avatar                String?
+    cover                 String[]
+    platformFee           Float?
+    isNSFW                Boolean          @default(false) @map("supportNsfw")
+    subscriptionType      SubscriptionType @default(Flat)
+    migrationLink         String?
+    location              String?
+    birthday              DateTime?
+    likeCount             Int              @default(0)
+    commentCount          Int              @default(0)
+    updatedAt             DateTime         @updatedAt
+    billingPaused         Boolean?
+    explicitCommentFilter Boolean?
+    hideComments          Boolean?
+    hideLikes             Boolean?
+    hideTips              Boolean?
+    isPremium             Boolean?
+    showProfile           Boolean?
+    uploadedVideoDuration Int              @default(0)
+    watermark             Boolean?
+    isFanReferralEnabled  Boolean          @default(false)
+    fanReferralShare      Int              @default(0)
+    marketingContentLink  String?
+    referrer              CreatorReferral? @relation(name: "CreatorReferral", fields: [referrerCode], references: [code], onDelete: SetNull)
+    referrerCode          String?
+    isDisplayShop         Boolean          @default(true)
+
+    unusedAgeVerifyId     String?          @map("ageVerifyId")
+    unusedAgeVerifyStatus AgeVerifyStatus? @map("ageVerifyStatus")
+
+    socialLinks                         SocialLink[]
+    subscriptions                       Subscription[]
+    roles                               Role[]
+    tiers                               Tier[]
+    posts                               Post[]
+    categories                          Category[]
+    playlists                           Playlist[]
+    reports                             ProfileReport[]
+    userLists                           UserListUser[]
+    stories                             Story[]
+    storyViewers                        StoryViewer[]
+    limitUsers                          LimitUser[]
+    previews                            ProfilePreview[]
+    userReports                         UserReport[]
+    highlights                          Highlight[]
+    balance                             Balance[]
+    blockedUsers                        BlockedCreator[]
+    paymentSubscriptions                PaymentSubscription[]            @relation("SubscriptionCreator")
+    paymentSubscriptionTransactions     PaymentSubscriptionTransaction[] @relation("PaymentSubscriptionCreator")
+    PaidPostTransaction                 PaidPostTransaction[]            @relation("PaidPostTransactionCreator")
+    cameoPayment                        CameoPayment[]                   @relation("CameoPaymentCreator")
+    gemsReceived                        GemsSpendingLog[]                @relation("GemsSpendingLogsToCreator")
+    payoutPaymentMethods                PayoutPaymentMethod[]
+    payoutSchedule                      PayoutSchedule[]
+    Notification                        Notification[]
+    fanReferrals                        FanReferral[]
+    userLevels                          UserLevel[]
+    xpLogs                              XPLog[]
+    referrals                           CreatorReferral[]
+    referentCreatorReferralTransactions CreatorReferralTransaction[]     @relation("ReferentCreatorReferralTransaction")
+    referrerCreatorReferralTransactions CreatorReferralTransaction[]     @relation("ReferrerCreatorReferralTransaction")
+    chatNotes                           ChatNote[]
+    welcomeMessage                      WelcomeMessage[]
+    chatPaidPostTransaction             ChatPaidPostTransaction[]        @relation("ChatPaidPostTransactionCreator")
+    notificationsSettings               NotificationsSettings?
+    fanReferralTransactions             FanReferralTransaction[]
+    hostMeetings                        Meeting[]                        @relation("meetingHost")
+    meetingDurations                    MeetingDuration[]
+    meetingIntervals                    MeetingInterval[]
+    MeetingSettings                     MeetingSettings?
+    customVideoDurations                CustomVideoDuration[]
+    CustomVideoSettings                 CustomVideoSettings[]
+
+    @@index([userId], type: BTree)
+    @@index([displayName], type: BTree)
+    @@index([profileLink], type: BTree)
+    @@index([verified], type: BTree)
+    @@index([flags], type: BTree)
+    @@index([isNSFW], type: Hash)
+    @@index([subscriptionType], type: Hash)
+    @@index([migrationLink], type: BTree)
+    @@index([location], type: BTree)
+    @@index([birthday], type: BTree)
+    @@index([disabled], type: Hash)
+    @@index([likeCount], type: BTree)
+    @@index([commentCount], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([billingPaused], type: Hash)
+    @@index([explicitCommentFilter], type: Hash)
+    @@index([hideComments], type: Hash)
+    @@index([hideLikes], type: Hash)
+    @@index([hideTips], type: Hash)
+    @@index([isPremium], type: Hash)
+    @@index([showProfile], type: Hash)
+    @@index([uploadedVideoDuration], type: BTree)
+    @@index([referrerCode], type: BTree)
+    @@map("profiles")
+}
+
+model CreatorReferral {
+    id         BigInt   @id
+    profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId  BigInt
+    code       String   @unique
+    visitCount Int      @default(0)
+    updatedAt  DateTime @updatedAt
+
+    referredProfiles Profile[] @relation("CreatorReferral")
+
+    @@index([profileId], type: BTree)
+    @@index([code], type: Hash)
+    @@map("creator_referrals")
+}
+
+model CreatorReferralTransaction {
+    id            BigInt                         @id
+    referent      Profile                        @relation(name: "ReferentCreatorReferralTransaction", fields: [referentId], references: [id], onDelete: Cascade)
+    referentId    BigInt
+    referrer      Profile                        @relation(name: "ReferrerCreatorReferralTransaction", fields: [referrerId], references: [id], onDelete: Cascade)
+    referrerId    BigInt
+    type          CreatorReferralTransactionType
+    transactionId BigInt
+    amount        Int
+    updatedAt     DateTime                       @updatedAt
+
+    @@index([referentId], type: BTree)
+    @@index([referrerId], type: BTree)
+    @@index([type], type: Hash)
+    @@index([transactionId], type: BTree)
+    @@index([amount], type: BTree)
+    @@map("creator_referral_transactions")
+}
+
+model FanReferral {
+    id         BigInt   @id
+    profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId  BigInt
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId     BigInt
+    code       String   @unique
+    visitCount Int      @default(0)
+    updatedAt  DateTime @updatedAt
+
+    paymentSubscriptions    PaymentSubscription[]
+    paidPostTransactions    PaidPostTransaction[]
+    gemsSpendingLogs        GemsSpendingLog[]
+    fanReferralTransactions FanReferralTransaction[]
+
+    @@index([profileId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([code], type: Hash)
+    @@map("fan_referral")
+}
+
+model FanReferralTransaction {
+    id            BigInt                     @id
+    referent      User                       @relation(name: "ReferentFanReferralTransaction", fields: [referentId], references: [id], onDelete: Cascade)
+    referentId    BigInt
+    creator       Profile                    @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId     BigInt
+    fanReferral   FanReferral                @relation(fields: [fanReferralId], references: [id], onDelete: Cascade)
+    fanReferralId BigInt
+    referrer      User                       @relation(name: "ReferrerFanReferralTransaction", fields: [referrerId], references: [id], onDelete: Cascade)
+    referrerId    BigInt
+    type          FanReferralTransactionType
+    transactionId BigInt
+    amount        Int
+    updatedAt     DateTime                   @updatedAt
+
+    @@index([referentId], type: BTree)
+    @@index([referrerId], type: BTree)
+    @@index([fanReferralId], type: BTree)
+    @@index([type], type: Hash)
+    @@index([transactionId], type: BTree)
+    @@index([amount], type: BTree)
+    @@map("fan_referral_transactions")
+}
+
+model SocialLink {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    provider  String
+    url       String
+    updatedAt DateTime @updatedAt
+
+    @@unique([profileId, provider])
+    @@index([profileId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([url], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("social_link")
+}
+
+model Subscription {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    title     String
+    currency  String
+    price     Float
+    updatedAt DateTime @updatedAt
+
+    campaigns           Campaign[]
+    bundles             Bundle[]
+    PaymentSubscription PaymentSubscription[]
+
+    @@index([profileId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([price], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("subscriptions")
+}
+
+model Bundle {
+    id                  BigInt                @id
+    subscription        Subscription?         @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    subscriptionId      BigInt?
+    title               String?
+    month               Int?
+    discount            Int
+    limit               Int                   @default(-1)
+    isActive            Boolean               @default(true)
+    updatedAt           DateTime              @updatedAt
+    PaymentSubscription PaymentSubscription[]
+
+    @@index([subscriptionId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([month], type: BTree)
+    @@index([discount], type: BTree)
+    @@index([limit], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("bundles")
+}
+
+model Tier {
+    id                  BigInt                @id
+    profile             Profile               @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId           BigInt
+    title               String
+    price               Float
+    currency            String
+    description         String
+    cover               String
+    perks               String[]
+    updatedAt           DateTime              @updatedAt
+    PaymentSubscription PaymentSubscription[]
+
+    tierPosts TierPost[]
+
+    @@index([profileId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([price], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([description], type: BTree)
+    @@index([cover], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("tiers")
+}
+
+enum DurationType {
+    Hours
+    Days
+    Weeks
+    Months
+}
+
+model Campaign {
+    id                  BigInt                @id
+    subscription        Subscription?         @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    subscriptionId      BigInt?
+    endDate             DateTime?
+    duration            Int?
+    durationType        DurationType?         @default(Months)
+    limit               Int
+    discount            Int
+    type                PromotionType         @default(Free_Trial)
+    applicable          CampaignType          @default(NEW)
+    updatedAt           DateTime              @updatedAt
+    PaymentSubscription PaymentSubscription[]
+
+    @@index([subscriptionId], type: BTree)
+    @@index([duration], type: BTree)
+    @@index([limit], type: BTree)
+    @@index([discount], type: BTree)
+    @@index([type], type: Hash)
+    @@index([applicable], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("campaigns")
+}
+
+enum EntityType {
+    Individual
+    Corporation
+}
+
+model PayoutPaymentMethod {
+    id                  BigInt          @id
+    profile             Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId           BigInt
+    provider            PaymentProvider
+    paypalEmail         String?
+    bankInfo            BankInfo?
+    bankInfoId          BigInt?
+    country             String
+    entityType          EntityType
+    usCitizenOrResident Boolean
+    updatedAt           DateTime        @updatedAt
+
+    @@index([profileId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([paypalEmail], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("payout_payment_methods")
+}
+
+model BankInfo {
+    id                    BigInt              @id
+    payoutPaymentMethod   PayoutPaymentMethod @relation(fields: [payoutPaymentMethodId], references: [id], onDelete: Cascade)
+    payoutPaymentMethodId BigInt              @unique
+    firstName             String
+    lastName              String
+    address1              String
+    address2              String
+    city                  String
+    state                 String
+    zip                   String
+    bankRoutingNumber     String
+    bankAccountNumber     String
+    updatedAt             DateTime            @updatedAt
+
+    @@index([firstName], type: BTree)
+    @@index([lastName], type: BTree)
+    @@index([address1], type: BTree)
+    @@index([address2], type: BTree)
+    @@index([city], type: BTree)
+    @@index([state], type: BTree)
+    @@index([zip], type: BTree)
+    @@index([bankRoutingNumber], type: BTree)
+    @@index([bankAccountNumber], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("bank_info")
+}
+
+enum PayoutMode {
+    Manual
+    Automatic
+}
+
+model PayoutSchedule {
+    id        BigInt     @id
+    profile   Profile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    mode      PayoutMode @default(Manual)
+    threshold Int?
+    maxPayout Int        @default(0)
+
+    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+
+    @@index([profileId], type: BTree)
+    @@index([mode], type: Hash)
+    @@index([threshold], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([createdAt], type: BTree)
+    @@map("payout_schedules")
+}
+
+model PayoutLog {
+    id                    BigInt            @id
+    profileId             BigInt
+    payoutPaymentMethodId BigInt
+    amount                Int
+    processingFee         Int
+    currency              String            @default("USD")
+    status                TransactionStatus
+    updatedAt             DateTime          @updatedAt
+    createdAt             DateTime          @default(now())
+
+    @@index([profileId], type: BTree)
+    @@index([payoutPaymentMethodId], type: BTree)
+    @@index([amount], type: BTree)
+    @@index([processingFee], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@index([createdAt], type: BTree)
+    @@map("payout_logs")
+}
+
+model UserLevel {
+    id        BigInt   @id
+    xp        Int      @default(0)
+    level     Int      @default(0)
+    label     String?
+    creator   Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    role      Role?    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId    BigInt?
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, creatorId])
+    @@index([creatorId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([xp], type: BTree)
+    @@index([level], type: BTree)
+    @@map("user_levels")
+}
+
+model XPAction {
+    id        Int          @id @default(autoincrement())
+    action    String       @unique
+    xp        Int
+    type      XPActionType @default(Add)
+    updatedAt DateTime     @updatedAt
+
+    @@index([action], type: Hash)
+    @@index([xp], type: BTree)
+    @@index([type], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("xp_actions")
+}
+
+model XPLog {
+    id             BigInt       @id
+    user           User         @relation("xpOwner", fields: [userId], references: [id], onDelete: Cascade)
+    userId         BigInt
+    creator        Profile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId      BigInt
+    action         XPActionType
+    amount         Float?       @default(1)
+    xp             Int
+    verifiedAt     DateTime?
+    verifiedBy     User?        @relation("xpVerifier", fields: [verifiedUserId], references: [id], onDelete: SetNull)
+    verifiedUserId BigInt?
+    updatedAt      DateTime     @updatedAt
+
+    @@index([creatorId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([action], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([xp], type: BTree)
+    @@index([verifiedAt], type: BTree)
+    @@index([verifiedUserId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("xp_logs")
+}
+
+model Role {
+    id         BigInt   @id
+    profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId  BigInt
+    name       String
+    color      String
+    icon       String?
+    customIcon String?
+    level      Int
+    updatedAt  DateTime @updatedAt
+
+    categories   RoleCategory[]
+    posts        RolePost[]
+    giveaways    RoleGiveaway[]
+    polls        RolePoll[]
+    Notification Notification[]
+    userLevels   UserLevel[]
+
+    @@index([profileId], type: BTree)
+    @@index([name], type: BTree)
+    @@index([color], type: BTree)
+    @@index([icon], type: BTree)
+    @@index([level], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("roles")
+}
+
+model Category {
+    id        BigInt   @id
+    name      String
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    isActive  Boolean  @default(true)
+    updatedAt DateTime @updatedAt
+
+    roles RoleCategory[]
+    posts PostCategory[]
+
+    @@unique([name, profileId])
+    @@index([name], type: BTree)
+    @@index([profileId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("categories")
+}
+
+model PostCategory {
+    id         BigInt   @id
+    post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId     BigInt
+    category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+    categoryId BigInt
+
+    @@index([postId], type: BTree)
+    @@index([categoryId], type: BTree)
+    @@map("post_categories")
+}
+
+model Post {
+    id               BigInt   @id
+    profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId        BigInt
+    title            String?
+    type             PostType @default(Text)
+    caption          String   @db.Text
+    thumb            String?
+    thumbId          BigInt?
+    thumbMedia       Upload?  @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    resource         Json // it can be array of images, array of videos, text
+    text             String?
+    advanced         Json?
+    location         String?
+    updatedAt        DateTime @updatedAt
+    isArchived       Boolean  @default(false)
+    isHidden         Boolean  @default(false)
+    description      String? // for audio post only
+    episodeNumber    Int? // for audio post only
+    isPrivate        Boolean? @default(false) // for audio post only
+    isNoiseReduction Boolean? @default(false) // for audio post only
+    isAudioLeveling  Boolean? @default(false) // for audio post only
+    isPaidPost       Boolean  @default(false)
+    isPinned         Boolean  @default(false)
+    isPosted         Boolean  @default(true)
+    shareCount       Int      @default(0)
+
+    roles         RolePost[]
+    paidPost      PaidPost?
+    categories    PostCategory[]
+    fundraiser    Fundraiser?
+    giveaway      Giveaway?
+    schedule      Schedule?
+    poll          Poll?
+    playlists     PlaylistPost[]
+    reports       PostReport[]
+    comments      Comment[]
+    taggedPeoples TaggedPeople[]
+    bookmarks     Bookmark[]
+    hiddenUsers   HiddenPost[]
+    postLikes     PostLike[]
+    Notification  Notification[]
+    postForms     PostForm[]
+    postMedias    PostMedia[]
+    tiers         TierPost[]
+    users         UserPost[]
+
+    @@index([profileId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([type], type: Hash)
+    @@index([thumb], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([isArchived], type: Hash)
+    @@index([isHidden], type: Hash)
+    @@map("posts")
+}
+
+model PostForm {
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    upload    Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+    uploadId  BigInt   @unique
+    updatedAt DateTime @updatedAt
+
+    @@id([postId, uploadId])
+    @@index([postId], type: BTree)
+    @@index([uploadId], type: BTree)
+    @@map("post_forms")
+}
+
+model PaidPost {
+    id                  BigInt                @id
+    post                Post                  @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId              BigInt                @unique
+    price               Float
+    currency            String
+    thumb               String?
+    thumbId             BigInt?
+    thumbMedia          Upload?               @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    updatedAt           DateTime              @updatedAt
+    PaidPostTransaction PaidPostTransaction[]
+    isPinned            Boolean               @default(false)
+    isHidden            Boolean               @default(false)
+
+    @@index([postId], type: BTree)
+    @@index([price], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@map("paid_posts")
+}
+
+model Fundraiser {
+    id         BigInt   @id
+    title      String
+    caption    String?  @db.Text
+    thumb      String?
+    thumbId    BigInt?
+    thumbMedia Upload?  @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    price      Float
+    currency   String
+    endDate    DateTime
+    isXpAdd    Boolean  @default(true)
+    post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId     BigInt   @unique
+    updatedAt  DateTime @updatedAt
+
+    @@index([title], type: BTree)
+    @@index([thumb], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([price], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([endDate], type: BTree)
+    @@index([isXpAdd], type: Hash)
+    @@index([updatedAt], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("fundraisers")
+}
+
+model Giveaway {
+    id          BigInt   @id
+    prize       String
+    thumb       String?
+    thumbId     BigInt?
+    thumbMedia  Upload?  @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    endDate     DateTime
+    winnerCount Int
+    post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId      BigInt   @unique
+    updatedAt   DateTime @updatedAt
+
+    roles RoleGiveaway[]
+
+    @@index([prize], type: BTree)
+    @@index([thumb], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([endDate], type: BTree)
+    @@index([winnerCount], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("giveaways")
+}
+
+model Poll {
+    id         BigInt   @id
+    question   String
+    caption    String?
+    thumb      String?
+    thumbId    BigInt?
+    thumbMedia Upload?  @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    endDate    DateTime
+    post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId     BigInt   @unique
+    isPublic   Boolean  @default(true)
+    updatedAt  DateTime @updatedAt
+
+    roles       RolePoll[]
+    pollAnswers PollAnswer[]
+
+    @@index([question], type: BTree)
+    @@index([caption], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([endDate], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("polls")
+}
+
+model PollAnswer {
+    id        BigInt   @id
+    poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+    pollId    BigInt
+    answer    String
+    updatedAt DateTime @updatedAt
+
+    pollVotes PollVote[]
+
+    @@index([pollId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("poll_answers")
+}
+
+model PollVote {
+    id           BigInt     @id
+    pollAnswer   PollAnswer @relation(fields: [pollAnswerId], references: [id], onDelete: Cascade)
+    pollAnswerId BigInt
+    user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId       BigInt
+    updatedAt    DateTime   @updatedAt
+
+    @@index([pollAnswerId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("poll_votes")
+}
+
+model Schedule {
+    id        BigInt    @id
+    post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt    @unique
+    jobId     String?
+    startDate DateTime
+    endDate   DateTime?
+    updatedAt DateTime  @updatedAt
+
+    @@index([postId], type: BTree)
+    @@index([startDate], type: BTree)
+    @@index([endDate], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("schedules")
+}
+
+model RoleCategory {
+    id         BigInt   @id
+    role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId     BigInt
+    category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+    categoryId BigInt
+
+    @@index([roleId], type: BTree)
+    @@index([categoryId], type: BTree)
+    @@map("role_categories")
+}
+
+model RolePost {
+    id     BigInt @id
+    role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId BigInt
+    post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId BigInt
+
+    @@index([roleId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("role_posts")
+}
+
+model TierPost {
+    id     BigInt @id
+    tier   Tier   @relation(fields: [tierId], references: [id], onDelete: Cascade)
+    tierId BigInt
+    post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId BigInt
+
+    @@index([tierId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("tier_posts")
+}
+
+model UserPost {
+    id     BigInt @id
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId BigInt
+    post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId BigInt
+
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("user_posts")
+}
+
+model RoleGiveaway {
+    id         BigInt   @id
+    role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId     BigInt
+    giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+    giveawayId BigInt
+
+    @@index([roleId], type: BTree)
+    @@index([giveawayId], type: BTree)
+    @@map("role_giveaways")
+}
+
+model RolePoll {
+    id     BigInt @id
+    role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId BigInt
+    poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+    pollId BigInt
+
+    @@index([roleId], type: BTree)
+    @@index([pollId], type: BTree)
+    @@map("role_polls")
+}
+
+model Upload {
+    id        BigInt            @id
+    user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    type      UploadType
+    storage   UploadStorageType
+    usage     UploadUsageType   @default(POST)
+    url       String
+    origin    String?
+    blurhash  String?
+    completed Boolean           @default(false)
+    isPinned  Boolean           @default(false)
+    length    Int               @default(0)
+    updatedAt DateTime          @updatedAt
+
+    playlists        PlaylistUpload[]
+    postForm         PostForm?
+    postMedias       PostMedia[]
+    storyMedias      StoryMedia[]
+    postThumbs       Post[]
+    paidPostThumbs   PaidPost[]
+    fundraiserThumbs Fundraiser[]
+    giveawayThumbs   Giveaway[]
+    pollThumbs       Poll[]
+    playlistThumbs   Playlist[]
+    messageThumbs    Message[]
+
+    @@index([userId], type: BTree)
+    @@index([type], type: Hash)
+    @@index([storage], type: Hash)
+    @@index([usage], type: Hash)
+    @@index([url], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@index([completed], type: Hash)
+    @@index([isPinned], type: Hash)
+    @@index([length], type: BTree)
+    @@map("uploads")
+}
+
+model PostMedia {
+    id        BigInt   @id
+    upload    Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+    uploadId  BigInt
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    updatedAt DateTime @updatedAt
+
+    postMediaTags PostMediaTag[]
+
+    @@index([uploadId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("post_medias")
+}
+
+model Playlist {
+    id          BigInt   @id
+    profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId   BigInt
+    title       String
+    description String?
+    thumb       String
+    thumbId     BigInt?
+    thumbMedia  Upload?  @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+    isPrivate   Boolean  @default(false)
+    viewCount   Int      @default(0)
+    updatedAt   DateTime @updatedAt
+
+    posts   PlaylistPost[]
+    uploads PlaylistUpload[]
+
+    @@index([profileId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([description], type: BTree)
+    @@index([thumbId], type: BTree)
+    @@index([isPrivate], type: Hash)
+    @@index([viewCount], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("playlists")
+}
+
+model PlaylistPost {
+    id         BigInt   @id
+    playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+    playlistId BigInt
+    post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId     BigInt
+
+    @@index([playlistId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("playlist_posts")
+}
+
+model PlaylistUpload {
+    id         BigInt   @id
+    playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+    playlistId BigInt
+    upload     Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+    uploadId   BigInt
+
+    @@index([playlistId], type: BTree)
+    @@index([uploadId], type: BTree)
+    @@map("playlist_uploads")
+}
+
+model ProfileReport {
+    id        BigInt            @id
+    user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    profile   Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    flag      ProfileReportFlag @default(OTHER)
+    status    ReportStatus      @default(OPEN)
+    reason    String?
+    updatedAt DateTime          @updatedAt
+
+    @@index([userId], type: BTree)
+    @@index([profileId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([reason], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("reports_for_profile")
+}
+
+model PostReport {
+    id        BigInt         @id
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    post      Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    flag      PostReportFlag @default(OTHER)
+    status    ReportStatus   @default(OPEN)
+    reason    String?
+    updatedAt DateTime       @updatedAt
+
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([reason], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("reports_for_post")
+}
+
+model UserList {
+    id        BigInt   @id
+    user      User     @relation("listOwner", fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    title     String
+    updatedAt DateTime @updatedAt
+
+    creators   UserListUser[]
+    activeUser User?
+
+    @@index([userId], type: BTree)
+    @@index([title], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("user_list")
+}
+
+// pivot for userlist and user
+model UserListUser {
+    userlist   UserList @relation(fields: [userlistId], references: [id])
+    userlistId BigInt
+    profile    Profile  @relation(fields: [profileId], references: [id])
+    profileId  BigInt
+
+    @@unique([userlistId, profileId])
+    @@index([userlistId], type: BTree)
+    @@index([profileId], type: BTree)
+    @@map("userlist_user")
+}
+
+model Comment {
+    id              BigInt        @id
+    user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId          BigInt
+    post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId          BigInt
+    parentComment   Comment?      @relation("parentComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
+    parentCommentId BigInt?
+    status          CommentStatus @default(VISIBLE)
+    content         String
+    updatedAt       DateTime      @updatedAt
+
+    replies      Comment[]       @relation("parentComment")
+    reports      CommentReport[] @relation("commentReports")
+    commentLikes CommentLike[]
+    Notification Notification[]
+
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@index([parentCommentId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([content], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("comments")
+}
+
+model CommentReport {
+    id        BigInt         @id
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    comment   Comment        @relation("commentReports", fields: [commentId], references: [id], onDelete: Cascade)
+    commentId BigInt
+    flag      PostReportFlag @default(OTHER)
+    status    ReportStatus   @default(OPEN)
+    reason    String?
+    updatedAt DateTime       @updatedAt
+
+    @@index([userId], type: BTree)
+    @@index([commentId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([reason], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("reports_for_comment")
+}
+
+model CommentLike {
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    commentId BigInt
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, commentId])
+    @@index([userId], type: BTree)
+    @@index([commentId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("likes")
+}
+
+model PostLike {
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    updatedAt DateTime @updatedAt
+
+    @@id([userId, postId])
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("like_posts")
+}
+
+model OAuth2LinkedAccount {
+    id           BigInt  @id
+    user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId       BigInt
+    provider     String
+    accountId    String
+    name         String
+    email        String
+    avatarUrl    String?
+    accessToken  String?
+    refreshToken String?
+
+    @@index([userId], type: BTree)
+    @@index([provider], type: Hash)
+    @@index([accountId], type: Hash)
+    @@index([name], type: BTree)
+    @@index([email], type: BTree)
+    @@index([avatarUrl], type: BTree)
+    @@map("oauth2_linked_accounts")
+}
+
+model MessageChannel {
+    id          BigInt @id
+    name        String
+    channelType Int
+
+    messages            Message[]
+    participants        MessageChannelParticipant[]
+    MessageChannelInbox MessageChannelInbox[]
+
+    @@index([name], type: BTree)
+    @@index([channelType], type: Hash)
+    @@map("message_channels")
+}
+
+model MessageChannelParticipant {
+    channel           MessageChannel @relation(fields: [channelId], references: [id])
+    channelId         BigInt
+    user              User           @relation(fields: [userId], references: [id])
+    userId            BigInt
+    conversationMuted Boolean        @default(false)
+
+    @@unique([channelId, userId])
+    @@index([channelId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([conversationMuted], type: Hash)
+    @@map("message_channel_participants")
+}
+
+model MessageChannelInbox {
+    channel           MessageChannel @relation(fields: [channelId], references: [id])
+    channelId         BigInt
+    user              User           @relation(fields: [userId], references: [id])
+    userId            BigInt
+    lastReadMessageId BigInt?
+
+    @@unique([channelId, userId])
+    @@index([channelId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([lastReadMessageId], type: BTree)
+    @@map("message_channel_inbox")
+}
+
+model Message {
+    id          BigInt         @id
+    channel     MessageChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+    channelId   BigInt
+    userId      BigInt
+    messageType Int
+    content     String
+
+    uploads                 Upload[]
+    chatPaidPostTransaction ChatPaidPostTransaction[]
+
+    @@index([channelId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([messageType], type: Hash)
+    @@map("messages")
+}
+
+model Story {
+    id          BigInt   @id
+    profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId   BigInt
+    isHighlight Boolean  @default(false)
+    isArchived  Boolean  @default(false)
+    medias      String[]
+    shareCount  Int      @default(0)
+    updatedAt   DateTime @updatedAt
+
+    highlights    HightlightStory[]
+    storyComments StoryComment[]
+    storyLikes    StoryLike[]
+    hiddenUsers   HiddenStory[]
+    reports       StoryReport[]
+    storyMedias   StoryMedia[]
+
+    @@index([profileId], type: BTree)
+    @@index([isHighlight], type: Hash)
+    @@index([isArchived], type: Hash)
+    @@index([shareCount], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("stories")
+}
+
+model StoryMedia {
+    id        BigInt   @id
+    upload    Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+    uploadId  BigInt
+    story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId   BigInt
+    updatedAt DateTime @updatedAt
+
+    @@index([uploadId], type: BTree)
+    @@index([storyId], type: BTree)
+    @@map("story_medias")
+}
+
+model StoryLike {
+    story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId   BigInt
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    updatedAt DateTime @updatedAt
+
+    @@id([storyId, userId])
+    @@map("story_likes")
+}
+
+model StoryComment {
+    id              BigInt        @id
+    story           Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId         BigInt
+    user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId          BigInt
+    parentComment   StoryComment? @relation("parentComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
+    parentCommentId BigInt?
+    content         String
+    updatedAt       DateTime      @updatedAt
+
+    replies           StoryComment[]     @relation("parentComment")
+    storyCommentLikes StoryCommentLike[]
+
+    @@index([storyId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([parentCommentId], type: BTree)
+    @@map("story_comments")
+}
+
+model StoryCommentLike {
+    storyComment   StoryComment @relation(fields: [storyCommentId], references: [id], onDelete: Cascade)
+    storyCommentId BigInt
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId         BigInt
+    updatedAt      DateTime     @updatedAt
+
+    @@id([storyCommentId, userId])
+    @@index([storyCommentId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("story_comment_likes")
+}
+
+model StoryViewer {
+    creator   Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+    viewerId  BigInt
+    updatedAt DateTime @updatedAt
+
+    @@unique([creatorId, viewerId])
+    @@map("story_viewers")
+}
+
+model HiddenStory {
+    user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId  BigInt
+    story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId BigInt
+
+    @@id([userId, storyId])
+    @@index([userId], type: BTree)
+    @@index([storyId], type: BTree)
+    @@map("hidden_stories")
+}
+
+model StoryReport {
+    id        BigInt          @id
+    user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    story     Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId   BigInt
+    flag      StoryReportFlag @default(OTHER)
+    status    ReportStatus    @default(OPEN)
+    reason    String?
+    updatedAt DateTime        @updatedAt
+
+    @@index([userId], type: BTree)
+    @@index([storyId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([reason], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("reports_for_story")
+}
+
+model LimitUser {
+    creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+
+    @@unique([creatorId, userId])
+    @@index([creatorId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("limit_payment_users")
+}
+
+model ProfilePreview {
+    id        BigInt  @id
+    profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    url       String
+
+    @@index([profileId], type: BTree)
+    @@map("profile_previews")
+}
+
+model UserReport {
+    id        BigInt            @id
+    creator   Profile           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    flag      ProfileReportFlag
+    status    ReportStatus      @default(OPEN)
+    reason    String?
+    updatedAt DateTime          @updatedAt
+
+    @@index([creatorId], type: BTree)
+    @@index([userId], type: BTree)
+    @@index([status], type: Hash)
+    @@index([reason], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("reports_for_user")
+}
+
+model TaggedPeople {
+    id        BigInt   @id
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    pointX    Int      @default(0)
+    pointY    Int      @default(0)
+    updatedAt DateTime @default(now()) @updatedAt
+
+    @@index([postId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("tagged_peoples")
+}
+
+model PostMediaTag {
+    id          BigInt    @id
+    postMedia   PostMedia @relation(fields: [postMediaId], references: [id], onDelete: Cascade)
+    postMediaId BigInt
+    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      BigInt
+    pointX      Int       @default(0)
+    pointY      Int       @default(0)
+    updatedAt   DateTime  @default(now()) @updatedAt
+
+    @@index([postMediaId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("post_media_tag")
+}
+
+model Highlight {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    title     String
+    cover     String
+    updatedAt DateTime @updatedAt
+
+    stories HightlightStory[]
+
+    @@index([title], type: BTree)
+    @@index([profileId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("highlights")
+}
+
+model HightlightStory {
+    highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+    highlightId BigInt
+    story       Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+    storyId     BigInt
+
+    @@id([highlightId, storyId])
+    @@index([highlightId], type: BTree)
+    @@index([storyId], type: BTree)
+    @@map("highlight_stories")
+}
+
+model Bookmark {
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt
+    updatedAt DateTime @default(now()) @updatedAt
+
+    @@id([userId, postId])
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("bookmarks")
+}
+
+model HiddenPost {
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId BigInt
+    post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId BigInt
+
+    @@id([userId, postId])
+    @@index([userId], type: BTree)
+    @@index([postId], type: BTree)
+    @@map("hidden_posts")
+}
+
+model BlockedCreator {
+    user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+
+    @@id([userId, creatorId])
+    @@index([userId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@map("blocked_creators")
+}
+
+model Application {
+    id            BigInt          @id
+    name          String
+    user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId        BigInt
+    token         String
+    createdAt     DateTime        @default(now())
+    icon          String?
+    WebhookTarget WebhookTarget[]
+
+    @@index([userId], type: BTree)
+    @@map("applications")
+}
+
+model WebhookTarget {
+    id           BigInt         @id
+    application  Application    @relation(fields: [appId], references: [id], onDelete: Cascade)
+    appId        BigInt
+    target       String
+    secret       String
+    WebhookRetry WebhookRetry[]
+
+    @@index([appId], type: BTree)
+    @@map("webhook_targets")
+}
+
+model WebhookRetry {
+    id         BigInt        @id
+    target     WebhookTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+    targetId   BigInt
+    payload    String
+    retryAfter DateTime
+    retryCount Int
+
+    @@index([targetId], type: BTree)
+    @@index([retryAfter], type: BTree)
+    @@map("webhook_retries")
+}
+
+model Notification {
+    id        BigInt             @id
+    type      Int
+    user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    BigInt
+    payload   Json
+    read      Boolean            @default(false)
+    comment   Comment?           @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    commentId BigInt?
+    post      Post?              @relation(fields: [postId], references: [id], onDelete: Cascade)
+    postId    BigInt?
+    creator   Profile?           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt?
+    role      Role?              @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    roleId    BigInt?
+    users     NotificationUser[]
+
+    @@index([userId], type: BTree)
+    @@index([type], type: Hash)
+    @@index([read], type: Hash)
+    @@index([commentId], type: BTree)
+    @@index([postId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([roleId], type: BTree)
+    @@map("notifications")
+}
+
+model NotificationUser {
+    notification   Notification @relation(fields: [notificationId], references: [id])
+    notificationId BigInt
+    user           User         @relation(fields: [userId], references: [id])
+    userId         BigInt
+
+    @@unique([notificationId, userId])
+    @@index([notificationId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("notification_user")
+}
+
+model ChatNote {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    note      String
+    updatedAt DateTime @updatedAt
+
+    @@index([profileId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("chat_notes")
+}
+
+model WelcomeMessage {
+    id        BigInt   @id
+    profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId BigInt
+    enabled   Boolean  @default(false)
+    text      String?
+    image     String?
+    updatedAt DateTime @updatedAt
+
+    @@index([profileId], type: BTree)
+    @@index([updatedAt], type: BTree)
+    @@map("welcome_messages")
+}
+
+model ChatPaidPostTransaction {
+    id               BigInt            @id
+    user             User              @relation(name: "ChatPaidPostTransactionUser", fields: [userId], references: [id], onDelete: Cascade)
+    userId           BigInt
+    creator          Profile           @relation(name: "ChatPaidPostTransactionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId        BigInt
+    paymentMethod    PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+    paymentMethodId  BigInt?
+    paymentProfileId String?
+    message          Message           @relation(fields: [messageId], references: [id])
+    messageId        BigInt
+    transactionId    String?           @unique
+    provider         PaymentProvider?
+    amount           Int
+    processingFee    Int
+    platformFee      Int
+    vatFee           Int?
+    currency         String            @default("USD")
+    status           TransactionStatus
+    error            String?
+    createdAt        DateTime          @default(now())
+
+    @@index([userId], type: BTree)
+    @@index([creatorId], type: BTree)
+    @@index([transactionId], type: Hash)
+    @@index([amount], type: BTree)
+    @@index([currency], type: Hash)
+    @@index([status], type: Hash)
+    @@index([createdAt], type: BTree)
+    @@map("chat_paid_post_transactions")
+}
+
+model NotificationsSettings {
+    id                             BigInt   @id
+    user                           User?    @relation(fields: [userId], references: [id])
+    userId                         BigInt?  @unique
+    profile                        Profile? @relation(fields: [profileId], references: [id])
+    profileId                      BigInt?  @unique
+    newSubscriberCreatorEmail      Boolean  @default(true)
+    tipCreatorEmail                Boolean  @default(true)
+    paidPostCreatorEmail           Boolean  @default(true)
+    messageCreatorEmail            Boolean  @default(true)
+    chargebackCreatorEmail         Boolean  @default(true)
+    messageFanEmail                Boolean  @default(true)
+    transactionFanEmail            Boolean  @default(true)
+    chargebackFanEmail             Boolean  @default(true)
+    newPostFanEmail                Boolean  @default(true)
+    newSubscriberCreatorInApp      Boolean  @default(true)
+    cancelSubscriptionCreatorInApp Boolean  @default(true)
+    tipCreatorInApp                Boolean  @default(true)
+    paidPostCreatorInApp           Boolean  @default(true)
+    chargebackCreatorInApp         Boolean  @default(true) //new
+    messageCreatorInApp            Boolean  @default(true)
+    commentCreatorInApp            Boolean  @default(true)
+    likeCreatorInApp               Boolean  @default(true)
+    messageFanInApp                Boolean  @default(true)
+    transactionFanInApp            Boolean  @default(true)
+    chargebackFanInApp             Boolean  @default(true) //new
+    replyCommentInApp              Boolean  @default(true)
+    mentionedInApp                 Boolean  @default(false)
+
+    @@index([userId], type: BTree)
+    @@index([profileId], type: BTree)
+    @@map("notifications_settings")
+}
+
+enum MeetingType {
+    OneOnOne_TwoWay
+    OneOnOne_OneWay
+}
+
+model Meeting {
+    id                BigInt        @id
+    host              Profile       @relation("meetingHost", fields: [hostId], references: [id], onDelete: Cascade)
+    hostId            BigInt
+    startDate         DateTime
+    endDate           DateTime
+    chimeMeetingId    String?
+    chimeRequestToken String        @default("")
+    prepareJobId      String?
+    cleanJobId        String?
+    users             MeetingUser[]
+
+    @@index([hostId], type: BTree)
+    @@index([startDate], type: BTree)
+    @@index([endDate], type: BTree)
+    @@index([chimeMeetingId], type: BTree)
+    @@index([prepareJobId], type: BTree)
+    @@index([cleanJobId], type: BTree)
+    @@map("meetings")
+}
+
+enum RtcStreamCapability {
+    SendReceive
+    Send
+    Receive
+    None
+}
+
+model MeetingUser {
+    meeting                 Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    meetingId               BigInt
+    user                    User                @relation(fields: [userId], references: [id])
+    userId                  BigInt
+    audioStreamCapability   RtcStreamCapability @default(None)
+    videoStreamCapability   RtcStreamCapability @default(None)
+    contentStreamCapability RtcStreamCapability @default(None)
+    attendeeId              String?
+    joinToken               String?
+
+    @@id([meetingId, userId])
+    @@map("meeting_users")
+}
+
+model MeetingDuration {
+    id        BigInt  @id
+    length    Int
+    creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    price     Decimal
+    currency  String
+    isEnabled Boolean @default(true)
+
+    @@index([creatorId], type: BTree)
+    @@index([length], type: BTree)
+    @@index([price], type: BTree)
+    @@index([isEnabled], type: Hash)
+    @@map("creator_meeting_durations")
+}
+
+enum WeekDay {
+    Monday
+    Tuesday
+    Wednesday
+    Thursday
+    Friday
+    Saturday
+    Sunday
+}
+
+model MeetingInterval {
+    id        BigInt   @id
+    day       WeekDay
+    startTime DateTime @db.Time()
+    length    Int
+    creator   Profile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+
+    @@index([creatorId], type: BTree)
+    @@map("creator_meeting_intervals")
+}
+
+enum MeetingContentType {
+    Consultation
+    Advice
+    Performance
+    EighteenPlusAdult
+    EighteenPlusSexual
+    Spirituality
+}
+
+model MeetingSettings {
+    profile                   Profile              @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId                 BigInt
+    bufferBetweenCalls        Int                  @default(5)
+    meetingType               MeetingType          @default(OneOnOne_TwoWay)
+    sexualContentAllowed      Boolean              @default(false)
+    contentPreferences        MeetingContentType[] @default([])
+    customContentPreferences  String?
+    title                     String?
+    description               String?
+    notificationNewRequests   Boolean              @default(true)
+    notificationCancellations Boolean              @default(true)
+    notificationReminders     Boolean              @default(true)
+    notificationsByEmail      Boolean              @default(true)
+    notificationsByPhone      Boolean              @default(true)
+    videoCallsEnabled         Boolean              @default(true)
+
+    @@id([profileId])
+    @@map("meeting_settings")
+}
+
+model CustomVideoDuration {
+    id        BigInt  @id
+    length    Int
+    creator   Profile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creatorId BigInt
+    price     Decimal
+    currency  String
+    isEnabled Boolean @default(true)
+
+    @@index([creatorId], type: BTree)
+    @@map("custom_video_durations")
+}
+
+enum CameoContentType {
+    Shoutout
+    Advice
+    Acting
+    EighteenPlus
+    EighteenPlusSexual
+    Roast
+}
+
+enum CameoVolumeTimeUnit {
+    Daily
+    Weekly
+    Monthly
+}
+
+model CustomVideoSettings {
+    profile                       Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+    profileId                     BigInt
+    contentTypes                  CameoContentType[]  @default([])
+    customContentType             String?
+    volumeTimeUnit                CameoVolumeTimeUnit @default(Daily)
+    volumeLimit                   Int?
+    fulfillmentTime               Int?
+    description                   String?
+    sexualContentEnabled          Boolean             @default(false)
+    agreedToTerms                 Boolean             @default(false)
+    notificationNewRequests       Boolean             @default(true)
+    notificationPendingVideos     Boolean             @default(true)
+    notificationCompletedRequests Boolean             @default(true)
+    notificationsByEmail          Boolean             @default(true)
+    notificationsByPhone          Boolean             @default(true)
+    customVideoEnabled            Boolean             @default(false)
+
+    @@id([profileId])
+    @@map("custom_video_settings")
+}

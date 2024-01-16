@@ -1,0 +1,6 @@
+{
+	"$schema": "https://json.schemastore.org/nodemon.json",
+	"exec": "tsc -p tsconfig.json && node dist/index.js | pino-pretty",
+	"watch": ["admin/*", "common/*", "public-api/*", "realtime/*", "web/*", "webhook/*", "index.ts"],
+	"ext": "ts,tsx,json,js"
+}

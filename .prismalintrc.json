@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "field-order": [
+      "error",
+      {
+        "order": ["tenantQid", "..."]
+      }
+    ],
+    "model-name-grammatical-number": [
+      "error",
+      {
+        "style": "singular"
+      }
+    ],
+    "require-field-type": [
+      "error",
+      {
+        "require": [
+          {
+            "type": "BigInt",
+            "ifName": "/.*Id$/"
+          }
+        ]
+      }
+    ]
+  }
+}

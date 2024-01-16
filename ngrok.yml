@@ -1,0 +1,12 @@
+authtoken: 2arfilgfKGLncBgmhCdbZuUCj2C_5PXQc1syNaxcsZkMX9bom
+tunnels:
+    backendfypfans:
+        addr: 4000
+        proto: http
+        host_header: rewrite
+    appfypfans:
+        addr: 19006
+        proto: http
+        host_header: rewrite
+version: "2"
+region: us
