@@ -7,6 +7,7 @@ export interface UserlistCreateReqBody {
 
 export interface UserlistUpdateReqBody {
 	title?: string;
+	enabled?: boolean;
 	creators?: string[];
 }
 

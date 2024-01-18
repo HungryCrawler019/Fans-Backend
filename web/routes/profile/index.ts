@@ -199,7 +199,11 @@ export default async function routes(fastify: FastifyTypebox) {
 						type: UploadType.Video,
 						postMedias: {
 							some: {
-								post: { profileId: profile.id },
+								post: {
+									profileId: profile.id,
+									isArchived: false,
+									isPosted: true,
+								},
 							},
 						},
 					},
@@ -210,7 +214,11 @@ export default async function routes(fastify: FastifyTypebox) {
 						type: UploadType.Image,
 						postMedias: {
 							some: {
-								post: { profileId: profile.id },
+								post: {
+									profileId: profile.id,
+									isArchived: false,
+									isPosted: true,
+								},
 							},
 						},
 					},
@@ -341,7 +349,15 @@ export default async function routes(fastify: FastifyTypebox) {
 				})),
 			});
 
-			return reply.send();
+			const profilePreviews = await prisma.profilePreview.findMany({
+				where: { id: profile.id },
+			});
+
+			const result = profilePreviews.map((pp) =>
+				ModelConverter.toIProfilePreview(pp),
+			);
+
+			return reply.send(result);
 		},
 	);
 
@@ -821,7 +837,11 @@ export default async function routes(fastify: FastifyTypebox) {
 							type: UploadType.Video,
 							postMedias: {
 								some: {
-									post: { profileId: profile.id },
+									post: {
+										profileId: profile.id,
+										isArchived: false,
+										isPosted: true,
+									},
 								},
 							},
 						},
@@ -832,7 +852,11 @@ export default async function routes(fastify: FastifyTypebox) {
 							type: UploadType.Image,
 							postMedias: {
 								some: {
-									post: { profileId: profile.id },
+									post: {
+										profileId: profile.id,
+										isArchived: false,
+										isPosted: true,
+									},
 								},
 							},
 						},

@@ -84,6 +84,17 @@ export interface TaggedPeople {
 	pointY: number;
 }
 
+export interface PostMediaTags {
+	userId: string;
+	pointX: number;
+	pointY: number;
+}
+
+export interface PostMedia {
+	postMediaId: string;
+	tags: PostMediaTags[];
+}
+
 export interface PostCreateReqBody {
 	title?: string;
 	type: PostType;
@@ -92,7 +103,7 @@ export interface PostCreateReqBody {
 	// video, image, audios can be string
 	// fundraiser will be FundrasierResource
 	// poll will be PollResource
-	mediaIds?: string[];
+	postMedias?: PostMedia[];
 	text?: string;
 	taggedPeoples?: TaggedPeople[];
 	advanced?: PostAdvanced;

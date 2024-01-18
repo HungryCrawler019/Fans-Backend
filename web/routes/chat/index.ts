@@ -614,4 +614,50 @@ export default async function routes(fastify: FastifyTypebox) {
 			reply.status(201).send();
 		},
 	);
+
+	fastify.post<{
+		Params: ChatIdParams;
+	}>(
+		"/conversations/:id/pin",
+		{
+			schema: {
+				params: ChatIdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session!;
+			const user = await session.getUser(prisma);
+			const channelId = BigInt(request.params.id);
+
+			await inboxManager.pinInbox(user.id, channelId);
+			reply.status(201).send();
+		},
+	);
+
+	fastify.delete<{
+		Params: ChatIdParams;
+	}>(
+		"/conversations/:id/delete",
+		{
+			schema: {
+				params: ChatIdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session!;
+			const user = await session.getUser(prisma);
+			const channelId = BigInt(request.params.id);
+
+			await inboxManager.deleteInbox(user.id, channelId);
+			reply.status(201).send();
+		},
+	);
 }

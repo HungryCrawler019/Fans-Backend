@@ -398,7 +398,10 @@ export default async function routes(fastify: FastifyTypebox) {
 			const { page = 1, size = DEFAULT_PAGE_SIZE } = request.query;
 
 			const total = await prisma.post.count({
-				where: { profileId: profile.id },
+				where: {
+					profileId: profile.id,
+					isPosted: true,
+				},
 			});
 			if (isOutOfRange(page, size, total)) {
 				return reply.sendError(APIErrors.OUT_OF_RANGE);
@@ -414,6 +417,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				prisma.post.findMany({
 					where: {
 						profileId: profile.id,
+						isPosted: true,
 					},
 					include: {
 						thumbMedia: true,

@@ -239,6 +239,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					where: { id: BigInt(id) },
 					data: {
 						title: data.title ?? undefined,
+						enabled: data.enabled ?? undefined,
 						creators: {
 							deleteMany:
 								usersToRemove.length > 0

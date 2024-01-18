@@ -610,7 +610,7 @@ export default async function routes(fastify: FastifyTypebox) {
 			const profile = (await session.getProfile(prisma))!;
 			const total = await prisma.paidPost.count({
 				where: {
-					post: { profileId: profile.id },
+					post: { profileId: profile.id, isPosted: true },
 				},
 				orderBy:
 					sort === "Latest"
@@ -636,7 +636,7 @@ export default async function routes(fastify: FastifyTypebox) {
 			const [rows, metadata] = await Promise.all([
 				prisma.paidPost.findMany({
 					where: {
-						post: { profileId: profile.id },
+						post: { profileId: profile.id, isPosted: true },
 					},
 					orderBy:
 						sort === "Latest"
@@ -726,7 +726,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				}),
 				prisma.paidPost.findMany({
 					where: {
-						post: { profileId: profile.id },
+						post: { profileId: profile.id, isPosted: true },
 					},
 					orderBy:
 						sort === "Latest"

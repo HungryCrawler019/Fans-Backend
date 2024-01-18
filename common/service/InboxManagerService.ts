@@ -208,7 +208,7 @@ class InboxManagerService {
 						: undefined,
 					lastReadMessageId: inbox.lastReadMessageId?.toString(),
 					isBlocked: false,
-					isPinned: false,
+					isPinned: inbox.isPinned,
 				};
 			}
 		}
@@ -221,7 +221,7 @@ class InboxManagerService {
 			lastMessage: undefined,
 			lastReadMessageId: "0",
 			isBlocked: false,
-			isPinned: false,
+			isPinned: inbox.isPinned,
 		};
 	}
 
@@ -240,6 +240,35 @@ class InboxManagerService {
 				},
 				data: {
 					lastReadMessageId: messageId,
+				},
+			})
+			.catch(() => null);
+	}
+
+	async pinInbox(userId: bigint, channelId: bigint): Promise<void> {
+		await this.#prisma.messageChannelInbox
+			.update({
+				where: {
+					channelId_userId: {
+						channelId,
+						userId,
+					},
+				},
+				data: {
+					isPinned: true,
+				},
+			})
+			.catch(() => null);
+	}
+
+	async deleteInbox(userId: bigint, channelId: bigint): Promise<void> {
+		await this.#prisma.messageChannelInbox
+			.delete({
+				where: {
+					channelId_userId: {
+						channelId,
+						userId,
+					},
 				},
 			})
 			.catch(() => null);

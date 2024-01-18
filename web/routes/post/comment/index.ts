@@ -203,7 +203,10 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			const commentCountOfProfile = await prisma.comment.count({
 				where: {
-					post: { profileId: updatedPost.profileId },
+					post: {
+						profileId: updatedPost.profileId,
+						isPosted: true,
+					},
 				},
 			});
 
@@ -407,7 +410,10 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			const commentCountOfProfile = await prisma.comment.count({
 				where: {
-					post: { profileId: comment.post.profileId },
+					post: {
+						profileId: comment.post.profileId,
+						isPosted: true,
+					},
 				},
 			});
 

@@ -799,6 +799,7 @@ export class ModelConverter {
 			userId: userlist.userId.toString(),
 			title: userlist.title,
 			updatedAt: userlist.updatedAt.toISOString(),
+			enabled: userlist.enabled,
 			isActive: metadata?.isActive ?? false,
 		};
 	}
