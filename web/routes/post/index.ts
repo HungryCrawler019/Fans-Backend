@@ -658,15 +658,23 @@ export default async function routes(fastify: FastifyTypebox) {
 					isPaidPost: !!data.paidPost,
 					isPosted: isPosted,
 					postMedias: data.postMedias
-						? {
-							createMany: {
-								data: data.mediaIds.map((id) => ({
-									id: snowflake.gen(),
-									uploadId: BigInt(id),
-								})),
-							},
-						}
-						: undefined,
+					? {
+							create: data.postMedias.map((item) => ({
+								id: snowflake.gen(),
+								uploadId: BigInt(item.postMediaId),
+								postMediaTags: {
+									createMany: {
+										data: item.tags.map((tag) => ({
+											id: snowflake.gen(),
+											userId: BigInt(tag.userId),
+											pointX: tag.pointX,
+											pointY: tag.pointY,
+										})),
+									},
+								},
+							})),
+					  }
+					: undefined,
 					postForms: data.formIds
 						? {
 							createMany: {
