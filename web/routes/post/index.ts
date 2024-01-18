@@ -62,7 +62,7 @@ import {
 	SaveFormReqBodyValidator,
 	SendInvitationReqBodyValidator,
 } from "./validation.js";
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig } from "axios";
 import { Stream } from "stream";
 
 export default async function routes(fastify: FastifyTypebox) {
@@ -434,22 +434,22 @@ export default async function routes(fastify: FastifyTypebox) {
 				),
 				giveaway: row.giveaway
 					? {
-						...ModelConverter.toIGiveaway(row.giveaway),
-						roles: row.giveaway.roles.map((r) =>
-							ModelConverter.toIRole(r.role),
-						),
-					}
+							...ModelConverter.toIGiveaway(row.giveaway),
+							roles: row.giveaway.roles.map((r) =>
+								ModelConverter.toIRole(r.role),
+							),
+					  }
 					: undefined,
 				fundraiser: row.fundraiser
 					? ModelConverter.toIFundraiser(row.fundraiser)
 					: undefined,
 				poll: row.poll
 					? {
-						...ModelConverter.toIPoll(row.poll),
-						roles: row.poll.roles.map((r) =>
-							ModelConverter.toIRole(r.role),
-						),
-					}
+							...ModelConverter.toIPoll(row.poll),
+							roles: row.poll.roles.map((r) =>
+								ModelConverter.toIRole(r.role),
+							),
+					  }
 					: undefined,
 
 				replies: ModelConverter.toIReplies(
@@ -496,7 +496,7 @@ export default async function routes(fastify: FastifyTypebox) {
 			if (
 				data.schedule &&
 				new Date(data.schedule.startDate).getTime() >
-				new Date().getTime()
+					new Date().getTime()
 			) {
 				isPosted = false;
 			}
@@ -657,154 +657,154 @@ export default async function routes(fastify: FastifyTypebox) {
 					isPaidPost: !!data.paidPost,
 					isPosted: isPosted,
 					postMedias: data.postMedias
-					? {
-							create: data.postMedias.map((item) => ({
-								id: snowflake.gen(),
-								uploadId: BigInt(item.postMediaId),
-								postMediaTags: {
-									createMany: {
-										data: item.tags.map((tag) => ({
-											id: snowflake.gen(),
-											userId: BigInt(tag.userId),
-											pointX: tag.pointX,
-											pointY: tag.pointY,
-										})),
+						? {
+								create: data.postMedias.map((item) => ({
+									id: snowflake.gen(),
+									uploadId: BigInt(item.postMediaId),
+									postMediaTags: {
+										createMany: {
+											data: item.tags.map((tag) => ({
+												id: snowflake.gen(),
+												userId: BigInt(tag.userId),
+												pointX: tag.pointX,
+												pointY: tag.pointY,
+											})),
+										},
 									},
-								},
-							})),
-					  }
-					: undefined,
+								})),
+						  }
+						: undefined,
 					postForms: data.formIds
 						? {
-							createMany: {
-								data: data.formIds.map((formId) => ({
-									uploadId: BigInt(formId),
-								})),
-							},
-						}
+								createMany: {
+									data: data.formIds.map((formId) => ({
+										uploadId: BigInt(formId),
+									})),
+								},
+						  }
 						: undefined,
 					taggedPeoples: data.taggedPeoples
 						? {
-							createMany: {
-								data: data.taggedPeoples.map((t) => ({
-									id: snowflake.gen(),
-									userId: BigInt(t.userId),
-									pointX: t.pointX,
-									pointY: t.pointY,
-								})),
-							},
-						}
+								createMany: {
+									data: data.taggedPeoples.map((t) => ({
+										id: snowflake.gen(),
+										userId: BigInt(t.userId),
+										pointX: t.pointX,
+										pointY: t.pointY,
+									})),
+								},
+						  }
 						: undefined,
 					roles:
 						data.roles && data.roles?.length > 0
 							? {
-								createMany: {
-									data: data.roles?.map((r) => ({
-										id: snowflake.gen(),
-										roleId: BigInt(r),
-									})),
-								},
-							}
+									createMany: {
+										data: data.roles?.map((r) => ({
+											id: snowflake.gen(),
+											roleId: BigInt(r),
+										})),
+									},
+							  }
 							: undefined,
 					tiers:
 						data.tiers && data.tiers?.length > 0
 							? {
-								createMany: {
-									data: data.tiers?.map((r) => ({
-										id: snowflake.gen(),
-										tierId: BigInt(r),
-									})),
-								},
-							}
+									createMany: {
+										data: data.tiers?.map((r) => ({
+											id: snowflake.gen(),
+											tierId: BigInt(r),
+										})),
+									},
+							  }
 							: undefined,
 					users:
 						data.users && data.users?.length > 0
 							? {
-								createMany: {
-									data: data.users?.map((r) => ({
-										id: snowflake.gen(),
-										userId: BigInt(r),
-									})),
-								},
-							}
+									createMany: {
+										data: data.users?.map((r) => ({
+											id: snowflake.gen(),
+											userId: BigInt(r),
+										})),
+									},
+							  }
 							: undefined,
 					paidPost: data.paidPost
 						? {
-							create: {
-								id: snowflake.gen(),
-								currency: data.paidPost.currency,
-								price: data.paidPost.price,
-								thumbId: data.paidPost.thumbId
-									? BigInt(data.paidPost.thumbId)
-									: undefined,
-							},
-						}
+								create: {
+									id: snowflake.gen(),
+									currency: data.paidPost.currency,
+									price: data.paidPost.price,
+									thumbId: data.paidPost.thumbId
+										? BigInt(data.paidPost.thumbId)
+										: undefined,
+								},
+						  }
 						: undefined,
 					categories:
 						data.categories && data.categories.length > 0
 							? {
-								createMany: {
-									data: data.categories.map((r) => ({
-										id: snowflake.gen(),
-										categoryId: BigInt(r),
-									})),
-								},
-							}
+									createMany: {
+										data: data.categories.map((r) => ({
+											id: snowflake.gen(),
+											categoryId: BigInt(r),
+										})),
+									},
+							  }
 							: undefined,
 					fundraiser: data.fundraiser
 						? {
-							create: {
-								id: snowflake.gen(),
-								title: data.fundraiser.title,
-								caption: data.fundraiser.caption,
-								thumbId: data.fundraiser.thumbId
-									? BigInt(data.fundraiser.thumbId)
-									: undefined,
-								price: data.fundraiser.price,
-								currency: data.fundraiser.currency,
-								endDate: new Date(data.fundraiser.endDate),
-								isXpAdd: data.fundraiser.isXpAdd,
-							},
-						}
+								create: {
+									id: snowflake.gen(),
+									title: data.fundraiser.title,
+									caption: data.fundraiser.caption,
+									thumbId: data.fundraiser.thumbId
+										? BigInt(data.fundraiser.thumbId)
+										: undefined,
+									price: data.fundraiser.price,
+									currency: data.fundraiser.currency,
+									endDate: new Date(data.fundraiser.endDate),
+									isXpAdd: data.fundraiser.isXpAdd,
+								},
+						  }
 						: undefined,
 					giveaway: data.giveaway
 						? {
-							create: {
-								id: snowflake.gen(),
-								prize: data.giveaway.prize,
-								thumbId: data.giveaway.thumbId
-									? BigInt(data.giveaway.thumbId)
-									: undefined,
-								endDate: new Date(data.giveaway.endDate),
-								winnerCount: data.giveaway.winnerCount,
-							},
-						}
+								create: {
+									id: snowflake.gen(),
+									prize: data.giveaway.prize,
+									thumbId: data.giveaway.thumbId
+										? BigInt(data.giveaway.thumbId)
+										: undefined,
+									endDate: new Date(data.giveaway.endDate),
+									winnerCount: data.giveaway.winnerCount,
+								},
+						  }
 						: undefined,
 					schedule: data.schedule
 						? {
-							create: {
-								id: snowflake.gen(),
-								startDate: new Date(
-									data.schedule.startDate,
-								),
-								endDate: data.schedule.endDate
-									? new Date(data.schedule.endDate)
-									: undefined,
-							},
-						}
+								create: {
+									id: snowflake.gen(),
+									startDate: new Date(
+										data.schedule.startDate,
+									),
+									endDate: data.schedule.endDate
+										? new Date(data.schedule.endDate)
+										: undefined,
+								},
+						  }
 						: undefined,
 					poll: data.poll
 						? {
-							create: {
-								id: snowflake.gen(),
-								question: data.poll.question,
-								caption: data.poll.caption,
-								thumbId: data.poll.thumbId
-									? BigInt(data.poll.thumbId)
-									: undefined,
-								endDate: new Date(data.poll.endDate),
-							},
-						}
+								create: {
+									id: snowflake.gen(),
+									question: data.poll.question,
+									caption: data.poll.caption,
+									thumbId: data.poll.thumbId
+										? BigInt(data.poll.thumbId)
+										: undefined,
+									endDate: new Date(data.poll.endDate),
+								},
+						  }
 						: undefined,
 				},
 				include: {
@@ -939,11 +939,11 @@ export default async function routes(fastify: FastifyTypebox) {
 				),
 				giveaway: created.giveaway
 					? {
-						...ModelConverter.toIGiveaway(created.giveaway),
-						roles: created.giveaway.roles.map((r) =>
-							ModelConverter.toIRole(r.role),
-						),
-					}
+							...ModelConverter.toIGiveaway(created.giveaway),
+							roles: created.giveaway.roles.map((r) =>
+								ModelConverter.toIRole(r.role),
+							),
+					  }
 					: undefined,
 				fundraiser: created.fundraiser
 					? ModelConverter.toIFundraiser(created.fundraiser)
@@ -960,11 +960,11 @@ export default async function routes(fastify: FastifyTypebox) {
 				})),
 				poll: created.poll
 					? {
-						...ModelConverter.toIPoll(created.poll),
-						roles: created.poll.roles.map((r) =>
-							ModelConverter.toIRole(r.role),
-						),
-					}
+							...ModelConverter.toIPoll(created.poll),
+							roles: created.poll.roles.map((r) =>
+								ModelConverter.toIRole(r.role),
+							),
+					  }
 					: undefined,
 				profile: ModelConverter.toIProfile(created.profile),
 			};
@@ -1072,34 +1072,34 @@ export default async function routes(fastify: FastifyTypebox) {
 						deleteMany:
 							rolesToRemove.length > 0
 								? rolesToRemove.map((r) => ({
-									roleId: BigInt(r),
-								}))
+										roleId: BigInt(r),
+								  }))
 								: undefined,
 						createMany:
 							rolesToAdd.length > 0
 								? {
-									data: rolesToAdd.map((r) => ({
-										id: snowflake.gen(),
-										roleId: BigInt(r),
-									})),
-								}
+										data: rolesToAdd.map((r) => ({
+											id: snowflake.gen(),
+											roleId: BigInt(r),
+										})),
+								  }
 								: undefined,
 					},
 					categories: {
 						deleteMany:
 							categoriesToRemove.length > 0
 								? categoriesToRemove.map((r) => ({
-									categoryId: BigInt(r),
-								}))
+										categoryId: BigInt(r),
+								  }))
 								: undefined,
 						createMany:
 							categoriesToAdd.length > 0
 								? {
-									data: categoriesToAdd.map((r) => ({
-										id: snowflake.gen(),
-										categoryId: BigInt(r),
-									})),
-								}
+										data: categoriesToAdd.map((r) => ({
+											id: snowflake.gen(),
+											categoryId: BigInt(r),
+										})),
+								  }
 								: undefined,
 					},
 				},
@@ -1347,19 +1347,19 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			const userList = userListId
 				? await prisma.userList.findFirst({
-					where: {
-						id: BigInt(userListId),
-						userId: BigInt(session.userId),
-					},
-					include: { creators: true },
-				})
+						where: {
+							id: BigInt(userListId),
+							userId: BigInt(session.userId),
+						},
+						include: { creators: true },
+				  })
 				: undefined;
 
 			const activeCreatorIds = userList
 				? userList.creators.map((c) => c.profileId)
 				: user?.activeUserList
-					? user.activeUserList.creators.map((c) => c.profileId)
-					: undefined;
+				? user.activeUserList.creators.map((c) => c.profileId)
+				: undefined;
 
 			const subscribedCreatorIds = paymentSubscriptions.map(
 				(ps) => ps.creatorId,
@@ -1380,10 +1380,10 @@ export default async function routes(fastify: FastifyTypebox) {
 					isArchived: false,
 					categories: categoryId
 						? {
-							some: {
-								categoryId: BigInt(categoryId),
-							},
-						}
+								some: {
+									categoryId: BigInt(categoryId),
+								},
+						  }
 						: undefined,
 					isPosted: true,
 				},
@@ -1391,11 +1391,11 @@ export default async function routes(fastify: FastifyTypebox) {
 					sort === "Latest"
 						? { id: "desc" }
 						: sort === "Popular"
-							? [
+						? [
 								{ comments: { _count: "desc" } },
 								{ postLikes: { _count: "desc" } },
-							]
-							: undefined,
+						  ]
+						: undefined,
 			});
 
 			if (isOutOfRange(page, size, total)) {
@@ -1418,18 +1418,18 @@ export default async function routes(fastify: FastifyTypebox) {
 						profileId: {
 							in: activeCreatorIds
 								? activeCreatorIds.filter((id) =>
-									subscribedCreatorIds.includes(id),
-								)
+										subscribedCreatorIds.includes(id),
+								  )
 								: subscribedCreatorIds,
 						},
 						id: { notIn: hiddenPosts.map((p) => p.postId) },
 						isArchived: false,
 						categories: categoryId
 							? {
-								some: {
-									categoryId: BigInt(categoryId),
-								},
-							}
+									some: {
+										categoryId: BigInt(categoryId),
+									},
+							  }
 							: undefined,
 						isPosted: true,
 					},
@@ -1514,11 +1514,11 @@ export default async function routes(fastify: FastifyTypebox) {
 						sort === "Latest"
 							? [{ id: "desc" }]
 							: sort === "Popular"
-								? [
+							? [
 									{ comments: { _count: "desc" } },
 									{ postLikes: { _count: "desc" } },
-								]
-								: undefined,
+							  ]
+							: undefined,
 					take: size,
 					skip: (page - 1) * size,
 				}),
@@ -1528,10 +1528,10 @@ export default async function routes(fastify: FastifyTypebox) {
 						id: { notIn: hiddenPosts.map((p) => p.postId) },
 						categories: categoryId
 							? {
-								some: {
-									categoryId: BigInt(categoryId),
-								},
-							}
+									some: {
+										categoryId: BigInt(categoryId),
+									},
+							  }
 							: undefined,
 						isPosted: true,
 					},
@@ -1583,11 +1583,11 @@ export default async function routes(fastify: FastifyTypebox) {
 						sort === "Latest"
 							? [{ id: "desc" }]
 							: sort === "Popular"
-								? [
+							? [
 									{ comments: { _count: "desc" } },
 									{ postLikes: { _count: "desc" } },
-								]
-								: undefined,
+							  ]
+							: undefined,
 					take: size,
 					skip: (page - 1) * size,
 				}),
@@ -1604,22 +1604,22 @@ export default async function routes(fastify: FastifyTypebox) {
 					...ModelConverter.toIPost(row, {
 						isBookmarked: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.bookmarks > 0
+									.bookmarks > 0
 							: false,
 						isCommented: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.comments > 0
+									.comments > 0
 							: false,
 						isLiked: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.postLikes > 0
+									.postLikes > 0
 							: false,
 						isPaidOut:
 							metadata.find((m) => m.id === row.id) &&
-								metadata.find((m) => m.id === row.id)!.paidPost
+							metadata.find((m) => m.id === row.id)!.paidPost
 								? metadata.find((m) => m.id === row.id)!
-									.paidPost!.PaidPostTransaction.length >
-								0
+										.paidPost!.PaidPostTransaction.length >
+								  0
 								: false,
 						isSelf: row.profileId === profile?.id,
 						isExclusive:
@@ -1639,19 +1639,19 @@ export default async function routes(fastify: FastifyTypebox) {
 						: undefined,
 					giveaway: row.giveaway
 						? {
-							...ModelConverter.toIGiveaway(row.giveaway),
-							roles: row.giveaway.roles.map((role) =>
-								ModelConverter.toIRole(role.role),
-							),
-						}
+								...ModelConverter.toIGiveaway(row.giveaway),
+								roles: row.giveaway.roles.map((role) =>
+									ModelConverter.toIRole(role.role),
+								),
+						  }
 						: undefined,
 					poll: row.poll
 						? {
-							...ModelConverter.toIPoll(row.poll),
-							roles: row.poll.roles.map((r) =>
-								ModelConverter.toIRole(r.role),
-							),
-						}
+								...ModelConverter.toIPoll(row.poll),
+								roles: row.poll.roles.map((r) =>
+									ModelConverter.toIRole(r.role),
+								),
+						  }
 						: undefined,
 					roles: row.roles.map((r) => ModelConverter.toIRole(r.role)),
 				})),
@@ -1711,10 +1711,10 @@ export default async function routes(fastify: FastifyTypebox) {
 						isArchived: false,
 						categories: categoryId
 							? {
-								some: {
-									categoryId: BigInt(categoryId),
-								},
-							}
+									some: {
+										categoryId: BigInt(categoryId),
+									},
+							  }
 							: undefined,
 						isPosted: true,
 					},
@@ -1722,12 +1722,12 @@ export default async function routes(fastify: FastifyTypebox) {
 						sort === "Latest"
 							? [{ isPinned: "desc" }, { id: "desc" }]
 							: sort === "Popular"
-								? [
+							? [
 									{ isPinned: "desc" },
 									{ comments: { _count: "desc" } },
 									{ postLikes: { _count: "desc" } },
-								]
-								: [{ isPinned: "desc" }],
+							  ]
+							: [{ isPinned: "desc" }],
 				});
 
 				if (isOutOfRange(page, size, total)) {
@@ -1769,10 +1769,10 @@ export default async function routes(fastify: FastifyTypebox) {
 							isArchived: false,
 							categories: categoryId
 								? {
-									some: {
-										categoryId: BigInt(categoryId),
-									},
-								}
+										some: {
+											categoryId: BigInt(categoryId),
+										},
+								  }
 								: undefined,
 							isPosted: true,
 						},
@@ -1858,12 +1858,12 @@ export default async function routes(fastify: FastifyTypebox) {
 							sort === "Latest"
 								? [{ isPinned: "desc" }, { id: "desc" }]
 								: sort === "Popular"
-									? [
+								? [
 										{ isPinned: "desc" },
 										{ comments: { _count: "desc" } },
 										{ postLikes: { _count: "desc" } },
-									]
-									: [{ isPinned: "desc" }],
+								  ]
+								: [{ isPinned: "desc" }],
 						take: size,
 						skip: (page - 1) * size,
 					}),
@@ -1873,10 +1873,10 @@ export default async function routes(fastify: FastifyTypebox) {
 							id: { notIn: hiddenPosts.map((p) => p.postId) },
 							categories: categoryId
 								? {
-									some: {
-										categoryId: BigInt(categoryId),
-									},
-								}
+										some: {
+											categoryId: BigInt(categoryId),
+										},
+								  }
 								: undefined,
 							isPosted: true,
 						},
@@ -1928,12 +1928,12 @@ export default async function routes(fastify: FastifyTypebox) {
 							sort === "Latest"
 								? [{ isPinned: "desc" }, { id: "desc" }]
 								: sort === "Popular"
-									? [
+								? [
 										{ isPinned: "desc" },
 										{ comments: { _count: "desc" } },
 										{ postLikes: { _count: "desc" } },
-									]
-									: [{ isPinned: "desc" }],
+								  ]
+								: [{ isPinned: "desc" }],
 						take: size,
 						skip: (page - 1) * size,
 					}),
@@ -1949,22 +1949,22 @@ export default async function routes(fastify: FastifyTypebox) {
 					...ModelConverter.toIPost(row, {
 						isBookmarked: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.bookmarks > 0
+									.bookmarks > 0
 							: false,
 						isCommented: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.comments > 0
+									.comments > 0
 							: false,
 						isLiked: metadata.find((m) => m.id === row.id)
 							? metadata.find((m) => m.id === row.id)!._count
-								.postLikes > 0
+									.postLikes > 0
 							: false,
 						isPaidOut:
 							metadata.find((m) => m.id === row.id) &&
-								metadata.find((m) => m.id === row.id)!.paidPost
+							metadata.find((m) => m.id === row.id)!.paidPost
 								? metadata.find((m) => m.id === row.id)!
-									.paidPost!.PaidPostTransaction.length >
-								0
+										.paidPost!.PaidPostTransaction.length >
+								  0
 								: false,
 						isSelf: row.profileId === profile?.id,
 						isExclusive:
@@ -1988,19 +1988,19 @@ export default async function routes(fastify: FastifyTypebox) {
 						: undefined,
 					giveaway: row.giveaway
 						? {
-							...ModelConverter.toIGiveaway(row.giveaway),
-							roles: row.giveaway.roles.map((role) =>
-								ModelConverter.toIRole(role.role),
-							),
-						}
+								...ModelConverter.toIGiveaway(row.giveaway),
+								roles: row.giveaway.roles.map((role) =>
+									ModelConverter.toIRole(role.role),
+								),
+						  }
 						: undefined,
 					poll: row.poll
 						? {
-							...ModelConverter.toIPoll(row.poll),
-							roles: row.poll.roles.map((r) =>
-								ModelConverter.toIRole(r.role),
-							),
-						}
+								...ModelConverter.toIPoll(row.poll),
+								roles: row.poll.roles.map((r) =>
+									ModelConverter.toIRole(r.role),
+								),
+						  }
 						: undefined,
 					roles: row.roles.map((r) => ModelConverter.toIRole(r.role)),
 				}));
@@ -2020,10 +2020,10 @@ export default async function routes(fastify: FastifyTypebox) {
 					isArchived: false,
 					categories: categoryId
 						? {
-							some: {
-								categoryId: BigInt(categoryId),
-							},
-						}
+								some: {
+									categoryId: BigInt(categoryId),
+								},
+						  }
 						: undefined,
 				},
 			});
@@ -2866,7 +2866,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				page = 1,
 				size = DEFAULT_PAGE_SIZE,
 				schedule = false,
-				orderBy = "Latest"
+				orderBy = "Latest",
 			} = request.query;
 			const total = await prisma.post.count({
 				where: {
@@ -2911,7 +2911,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					NOT: {
 						schedule: schedule ? null : undefined,
 						isPosted: !schedule ? false : undefined,
-						isArchived: true
+						isArchived: true,
 					},
 				},
 				include: {
@@ -2982,11 +2982,17 @@ export default async function routes(fastify: FastifyTypebox) {
 				},
 			});
 
-			await Promise.all(posts.map((p) => {
-				return resolveURLsPostLike(p, cloudflareStream, mediaUpload);
-			}));
+			await Promise.all(
+				posts.map((p) => {
+					return resolveURLsPostLike(
+						p,
+						cloudflareStream,
+						mediaUpload,
+					);
+				}),
+			);
 
-			reply.send(posts)
+			reply.send(posts);
 
 			// // Set the headers to indicate a file download
 			// reply.header('Content-Type', 'application/zip');
@@ -3024,10 +3030,10 @@ export default async function routes(fastify: FastifyTypebox) {
 			// 				url: "https://fyp-fans-cdn-dev.harvestangels.co/"+fileUrl.upload.url,
 			// 				responseType: 'stream',
 			// 			} as AxiosRequestConfig<any>);
-	
+
 			// 			// Use the URL or a filename from the Content-Disposition header for the name in the archive
 			// 			const filename = fileUrl.upload.url.split('/').pop() || 'file';
-	
+
 			// 			// Append the file stream to the archive
 			// 			archive.append(response.data, { name: filename });
 			// 		} catch (error) {
@@ -3041,5 +3047,4 @@ export default async function routes(fastify: FastifyTypebox) {
 			// archive.finalize();
 		},
 	);
-
 }

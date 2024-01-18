@@ -172,7 +172,7 @@ assert<
 >();
 
 export const PostDownloadsBodyValidator = Type.Object({
-	postIds: Type.Array(Type.String(), { minItems: 1 })
+	postIds: Type.Array(Type.String(), { minItems: 1 }),
 });
 assert<
 	Equals<Static<typeof PostDownloadsBodyValidator>, PostDownloadsReqBody>
