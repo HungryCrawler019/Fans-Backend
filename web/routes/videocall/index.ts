@@ -1,5 +1,5 @@
 import { Logger } from "pino";
-import { DateTime, Interval, WeekdayNumbers } from "luxon";
+import { DateTime, Interval } from "luxon";
 import { FastifyTypebox } from "../../types.js";
 import SessionManagerService, {
 	Session,
@@ -78,7 +78,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						day: timeIntervalStart.day,
 					})
 					.set({
-						weekday: ModelConverter.weekDay2Index(interval.day) + 1 as WeekdayNumbers,
+						weekday: ModelConverter.weekDay2Index(interval.day) + 1,
 					});
 
 				if (timeInterval.contains(start)) {

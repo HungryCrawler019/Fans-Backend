@@ -1,5 +1,5 @@
 import { Logger } from "pino";
-import { DateTime, Interval, WeekdayNumbers } from "luxon";
+import { DateTime, Interval } from "luxon";
 import dinero from "dinero.js";
 import { TaxjarError } from "taxjar/dist/util/types.js";
 import { TransactionStatus } from "@prisma/client";
@@ -186,7 +186,7 @@ export default async function routes(fastify: FastifyTypebox) {
 						})
 						.set({
 							weekday:
-								ModelConverter.weekDay2Index(interval.day) + 1 as WeekdayNumbers,
+								ModelConverter.weekDay2Index(interval.day) + 1,
 						});
 					const intervalEndTime = intervalStartTime.plus({
 						minute: interval.length,
