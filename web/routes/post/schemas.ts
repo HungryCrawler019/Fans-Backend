@@ -150,15 +150,6 @@ export interface PostFilterQuery {
 	schedule?: boolean;
 }
 
-export interface OldPostFilterQuery {
-	query?: string;
-	type?: PostType;
-	page?: number;
-	size?: number;
-	schedule?: boolean;
-	orderBy?: SortType;
-}
-
 export const sortType = {
 	Latest: "Latest",
 	Popular: "Popular",
@@ -234,8 +225,4 @@ export interface SearchFansRespBody {
 
 export interface LikePostResp {
 	likePostIds: string[];
-}
-
-export interface PostDownloadsReqBody {
-	postIds: string[];
 }

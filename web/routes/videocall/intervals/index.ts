@@ -1,5 +1,5 @@
 import { Logger } from "pino";
-import { DateTime, Interval, WeekdayNumbers } from "luxon";
+import { DateTime, Interval } from "luxon";
 import { MeetingInterval } from "@prisma/client";
 import PrismaService from "../../../../common/service/PrismaService.js";
 import SessionManagerService, {
@@ -29,7 +29,7 @@ const checkIntervalsConflict = (
 				day: startDateTime.day,
 			})
 			.set({
-				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1 as WeekdayNumbers,
+				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1,
 			});
 		const end = DateTime.fromJSDate(existingInterval.startTime)
 			.toUTC()
@@ -39,7 +39,7 @@ const checkIntervalsConflict = (
 				day: startDateTime.day,
 			})
 			.set({
-				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1 as WeekdayNumbers,
+				weekday: ModelConverter.weekDay2Index(existingInterval.day) + 1,
 			})
 			.plus({ minute: existingInterval.length });
 		const exitingTimeInterval = Interval.fromDateTimes(start, end);
@@ -84,7 +84,7 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			const startDateTime = DateTime.fromISO(request.body.startTime)
 				.set({
-					weekday: request.body.day + 1 as WeekdayNumbers,
+					weekday: request.body.day + 1,
 				})
 				.toUTC();
 
@@ -193,7 +193,7 @@ export default async function routes(fastify: FastifyTypebox) {
 
 			const startDateTime = DateTime.fromISO(request.body.startTime)
 				.set({
-					weekday: request.body.day + 1 as WeekdayNumbers,
+					weekday: request.body.day + 1,
 				})
 				.toUTC();
 
