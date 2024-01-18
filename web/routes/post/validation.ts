@@ -4,6 +4,7 @@ import { assert, Equals } from "tsafe";
 import {
 	PostArchiveReqBody,
 	PostCreateReqBody,
+	PostDownloadsReqBody,
 	PostFeedQuery,
 	PostFilterQuery,
 	PostUpdateReqBody,
@@ -168,4 +169,11 @@ export const SendInvitationReqBodyValidator = Type.Object({
 });
 assert<
 	Equals<Static<typeof SendInvitationReqBodyValidator>, SendInvitationReqBody>
+>();
+
+export const PostDownloadsBodyValidator = Type.Object({
+	postIds: Type.Array(Type.String(), { minItems: 1 })
+});
+assert<
+	Equals<Static<typeof PostDownloadsBodyValidator>, PostDownloadsReqBody>
 >();
