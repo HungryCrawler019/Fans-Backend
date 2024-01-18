@@ -230,6 +230,7 @@ export default async function routes(fastify: FastifyTypebox) {
 									},
 							  ]
 							: undefined,
+						isPosted: true,
 					},
 				},
 				orderBy: { updatedAt: "desc" },
@@ -260,6 +261,7 @@ export default async function routes(fastify: FastifyTypebox) {
 									},
 							  ]
 							: undefined,
+						isPosted: true,
 					},
 				},
 				include: {

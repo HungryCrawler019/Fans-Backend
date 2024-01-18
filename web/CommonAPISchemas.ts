@@ -571,6 +571,7 @@ export interface IUserlist {
 	userId: string;
 	title: string;
 	updatedAt: string;
+	enabled: boolean;
 	isActive?: boolean;
 }
 

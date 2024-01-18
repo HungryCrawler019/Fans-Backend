@@ -16,6 +16,7 @@ assert<
 
 export const UserlistUpdateReqBodyValidator = Type.Object({
 	title: Type.Optional(Type.String()),
+	enabled: Type.Optional(Type.Boolean()),
 	creators: Type.Optional(Type.Array(Type.String())),
 });
 assert<

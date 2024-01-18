@@ -161,7 +161,7 @@ export default async function routes(fastify: FastifyTypebox) {
 			const pollVote = answer.pollVotes.find(
 				(pv) => pv.userId.toString() === session.userId,
 			);
-			if (!pollVote) {
+			if (pollVote) {
 				return reply.sendError(APIErrors.POLL_ANSWER_IS_VOTED_ALREADY);
 			}
 

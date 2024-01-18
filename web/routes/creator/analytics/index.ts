@@ -1563,9 +1563,7 @@ export default async function routes(
 				where: {
 					id: BigInt(postId),
 					profileId: profile.id,
-					NOT: {
-						isPosted: false,
-					},
+					isPosted: true,
 				},
 				select: { paidPost: true },
 			});

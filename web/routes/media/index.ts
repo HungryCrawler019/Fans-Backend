@@ -198,6 +198,7 @@ export default async function routes(fastify: FastifyTypebox) {
 								post: {
 									profileId: profile.id,
 									isArchived: false,
+									isPosted: true,
 								},
 							},
 						},
@@ -212,6 +213,7 @@ export default async function routes(fastify: FastifyTypebox) {
 								post: {
 									profileId: profile.id,
 									isArchived: false,
+									isPosted: true,
 								},
 							},
 						},
@@ -236,7 +238,11 @@ export default async function routes(fastify: FastifyTypebox) {
 					usage: UploadUsageType.POST,
 					postMedias: {
 						some: {
-							post: { profileId: profile.id, isArchived: false },
+							post: {
+								profileId: profile.id,
+								isArchived: false,
+								isPosted: true,
+							},
 						},
 					},
 				},
@@ -303,6 +309,7 @@ export default async function routes(fastify: FastifyTypebox) {
 								post: {
 									profileId: profile.id,
 									isArchived: false,
+									isPosted: true,
 								},
 							},
 						},
@@ -317,6 +324,7 @@ export default async function routes(fastify: FastifyTypebox) {
 								post: {
 									profileId: profile.id,
 									isArchived: false,
+									isPosted: true,
 								},
 							},
 						},
@@ -374,6 +382,7 @@ export default async function routes(fastify: FastifyTypebox) {
 									post: {
 										profileId: profile.id,
 										isArchived: false,
+										isPosted: true,
 									},
 								},
 							},

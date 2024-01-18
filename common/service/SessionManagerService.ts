@@ -68,11 +68,20 @@ export class Session {
 	}
 
 	async getAllSessionKeys(): Promise<string[]> {
-		const [_cur, sessions] = await this.#redis.scan(
-			"0",
-			"MATCH",
-			`sessions:${this.userId}.*`,
-		);
+		let cur = "0";
+		const sessions: string[] = [];
+
+		for (;;) {
+			const [newCur, sessionKeys] = await this.#redis.scan(
+				cur,
+				"MATCH",
+				`sessions:${this.userId}.*`,
+			);
+			cur = newCur;
+
+			if (sessionKeys.length > 0) sessions.push(...sessionKeys);
+			if (cur === "0") break;
+		}
 
 		return sessions;
 	}
@@ -256,13 +265,18 @@ class SessionManagerService {
 	 * @param id The user ID to destroy sessions for.
 	 */
 	async destroySessionsForUser(id: string) {
-		const [_cur, sessionKeys] = await this.#redis.scan(
-			"0",
-			"MATCH",
-			`sessions:${id}.*`,
-		);
+		let cur = "0";
+		for (;;) {
+			const [newCur, sessionKeys] = await this.#redis.scan(
+				cur,
+				"MATCH",
+				`sessions:${id}.*`,
+			);
+			cur = newCur;
 
-		await this.#redis.del(...sessionKeys);
+			if (sessionKeys.length > 0) await this.#redis.del(...sessionKeys);
+			if (cur === "0") break;
+		}
 	}
 }
 

@@ -17,7 +17,20 @@ export const PostCreateReqBodyValidator = Type.Object({
 	type: Type.Enum(PostType),
 	caption: Type.String(),
 	thumbId: Type.Optional(Type.String()),
-	mediaIds: Type.Optional(Type.Array(Type.String())),
+	postMedias: Type.Optional(
+		Type.Array(
+			Type.Object({
+				postMediaId: Type.String(),
+				tags: Type.Array(
+					Type.Object({
+						userId: Type.String(),
+						pointX: Type.Number(),
+						pointY: Type.Number(),
+					}),
+				),
+			}),
+		),
+	),
 	text: Type.Optional(Type.String()),
 	taggedPeoples: Type.Optional(
 		Type.Array(

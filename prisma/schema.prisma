@@ -219,6 +219,7 @@ model User {
     meetings                        MeetingUser[]
     banLog                          BanLog[]
     videoCallPurchases              VideoCallPurchase[]
+    postMediaTags                   PostMediaTag[]
 
     @@index([username], type: BTree)
     @@index([displayName], type: BTree)
@@ -1445,6 +1446,8 @@ model PostMedia {
     postId    BigInt
     updatedAt DateTime @updatedAt
 
+    postMediaTags PostMediaTag[]
+
     @@index([uploadId], type: BTree)
     @@index([postId], type: BTree)
     @@map("post_medias")
@@ -1543,6 +1546,7 @@ model UserList {
     user      User     @relation("listOwner", fields: [userId], references: [id], onDelete: Cascade)
     userId    BigInt
     title     String
+    enabled   Boolean  @default(true)
     updatedAt DateTime @updatedAt
 
     creators   UserListUser[]
@@ -1695,11 +1699,13 @@ model MessageChannelInbox {
     user              User           @relation(fields: [userId], references: [id])
     userId            BigInt
     lastReadMessageId BigInt?
+    isPinned          Boolean        @default(false)
 
     @@unique([channelId, userId])
     @@index([channelId], type: BTree)
     @@index([userId], type: BTree)
     @@index([lastReadMessageId], type: BTree)
+    @@index([isPinned], type: Hash)
     @@map("message_channel_inbox")
 }
 
@@ -1898,6 +1904,21 @@ model TaggedPeople {
     @@index([postId], type: BTree)
     @@index([userId], type: BTree)
     @@map("tagged_peoples")
+}
+
+model PostMediaTag {
+    id          BigInt    @id
+    postMedia   PostMedia @relation(fields: [postMediaId], references: [id], onDelete: Cascade)
+    postMediaId BigInt
+    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      BigInt
+    pointX      Int       @default(0)
+    pointY      Int       @default(0)
+    updatedAt   DateTime  @default(now()) @updatedAt
+
+    @@index([postMediaId], type: BTree)
+    @@index([userId], type: BTree)
+    @@map("post_media_tag")
 }
 
 model Highlight {
