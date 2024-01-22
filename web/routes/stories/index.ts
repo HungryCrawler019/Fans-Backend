@@ -27,7 +27,7 @@ export default async function routes(fastify: FastifyTypebox) {
 	const maxObjectLimit = parseInt(process.env.MAX_OBJECT_LIMIT ?? "100");
 
 	// Get all stories
-	fastify.get<{ Querystring: PageQuery }>(
+	fastify.get<{ Querystring: PageQuery; Reply: StoriesRespBody }>(
 		"/",
 		{
 			schema: { querystring: PageQueryValidator },
@@ -99,7 +99,7 @@ export default async function routes(fastify: FastifyTypebox) {
 	);
 
 	// Get a story with ID
-	fastify.get<{ Params: IdParams }>(
+	fastify.get<{ Params: IdParams; Reply: StoryRespBody }>(
 		"/:id",
 		{
 			schema: { params: IdParamsValidator },
@@ -156,7 +156,7 @@ export default async function routes(fastify: FastifyTypebox) {
 	);
 
 	// Create new story
-	fastify.post<{ Body: StoryCreateReqBody }>(
+	fastify.post<{ Body: StoryCreateReqBody; Reply: StoryRespBody }>(
 		"/",
 		{
 			schema: {
@@ -266,7 +266,7 @@ export default async function routes(fastify: FastifyTypebox) {
 	);
 
 	// loading story creator for Homepage feed
-	fastify.get<{ Querystring: PageQuery }>(
+	fastify.get<{ Querystring: PageQuery; Reply: StoryFeedRespBody }>(
 		"/feed",
 		{
 			schema: {
@@ -399,7 +399,11 @@ export default async function routes(fastify: FastifyTypebox) {
 	);
 
 	// loading story creator for Homepage feed
-	fastify.get<{ Params: IdParams; Querystring: PageQuery }>(
+	fastify.get<{
+		Params: IdParams;
+		Querystring: PageQuery;
+		Reply: StoriesRespBody;
+	}>(
 		"/feed/:id",
 		{
 			schema: {
@@ -494,7 +498,7 @@ export default async function routes(fastify: FastifyTypebox) {
 
 	// Like/Unlike for a story by ID
 	// return updated story object
-	fastify.post<{ Params: IdParams }>(
+	fastify.post<{ Params: IdParams; Reply: StoryRespBody }>(
 		"/like/:id",
 		{
 			schema: { params: IdParamsValidator },
@@ -574,7 +578,7 @@ export default async function routes(fastify: FastifyTypebox) {
 		},
 	);
 
-	fastify.delete<{ Params: IdParams }>(
+	fastify.delete<{ Params: IdParams; Reply: StoryRespBody }>(
 		"/like/:id",
 		{
 			schema: { params: IdParamsValidator },
@@ -654,7 +658,7 @@ export default async function routes(fastify: FastifyTypebox) {
 		},
 	);
 
-	fastify.post<{ Params: IdParams }>(
+	fastify.post<{ Params: IdParams; Reply: StoryRespBody }>(
 		"/share/:id",
 		{
 			schema: {

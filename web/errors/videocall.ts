@@ -99,4 +99,11 @@ export const videocallAPIErrors = {
 			message: "Meeting conflicts with creator's vacation",
 		},
 	},
+	MEETING_INVALID_STATE: {
+		status: 400,
+		data: {
+			code: errorCode(ErrorSource.Meeting, 15),
+			message: "Invalid meeting state",
+		},
+	},
 };

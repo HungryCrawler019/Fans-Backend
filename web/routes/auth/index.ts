@@ -339,8 +339,7 @@ export default async function routes(
 				return reply.sendError(APIErrors.USER_NOT_VERIFIED);
 			}
 
-			// const result = await verifyPassword(password, user.password);
-			const result = VerifyPasswordResult.OK;
+			const result = await verifyPassword(password, user.password);
 			if (result === VerifyPasswordResult.OK) {
 				const session = await sessionManager.createSessionForUser(
 					user.id.toString(),

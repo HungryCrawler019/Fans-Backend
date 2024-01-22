@@ -48,6 +48,9 @@ export type DurationType = (typeof durationTypes)[number];
 const meetingTypes = ["OneOnOne_TwoWay", "OneOnOne_OneWay"];
 export type MeetingType = (typeof meetingTypes)[number];
 
+const meetingStatuses = ["Pending", "Accepted", "Declined", "Cancelled"];
+export type MeetingStatusType = (typeof meetingStatuses)[number];
+
 const ageVerifyStatus = [
 	"PENDING",
 	"APPROVED",
@@ -745,7 +748,11 @@ export interface IMessage {
 	content: string;
 	emoji?: number;
 	images?: string[];
+	previewImages?: string;
 	value?: number;
+	status?: string;
+	parentId?: string;
+	parentMessage?: IMessage;
 }
 
 export interface PaymentMethod {
@@ -973,6 +980,7 @@ export interface IMeeting {
 	hostId: string;
 	startDate: Date;
 	endDate: Date;
+	status: MeetingStatusType;
 }
 
 export interface IMeetingDuration {

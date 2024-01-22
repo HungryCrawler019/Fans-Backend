@@ -26,6 +26,7 @@ import {
 	ChatFansListReqParams,
 	ChatFansListRespBody,
 	ChatIdParams,
+	ChatDeleteMessageIdParams,
 	ChatNoteReqBody,
 	ChatUserIdParams,
 	ChatWSInfoRespBody,
@@ -36,6 +37,7 @@ import {
 	ChatConversationMessagesQueryValidator,
 	ChatFansListReqParamsValidator,
 	ChatIdParamsValidator,
+	ChatDeleteMessageIdParamsValidator,
 	ChatNoteReqBodyValidator,
 	ChatUserIdParamsValidator,
 } from "./validation.js";
@@ -183,12 +185,14 @@ export default async function routes(fastify: FastifyTypebox) {
 				.findMany({
 					include: {
 						uploads: true,
+						parentMessage: true,
 					},
 					where: {
 						channelId,
 						...(idBefore
 							? { id: { lt: idBefore } }
 							: { id: { gt: idAfter } }),
+						deletedAt: null,
 					},
 					orderBy: {
 						id: idAfter ? "asc" : "desc",
@@ -196,6 +200,8 @@ export default async function routes(fastify: FastifyTypebox) {
 					take: request.query.limit,
 				})
 				.then((u) => inboxManager.resolveUsers(u));
+
+			console.log(messages);
 
 			messages.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
@@ -252,6 +258,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					userId: user.id,
 					content: request.body.content,
 					messageType,
+					parentId: request.body.parentId,
 				};
 			} else if (messageType === MessageType.IMAGE) {
 				options = {
@@ -260,6 +267,7 @@ export default async function routes(fastify: FastifyTypebox) {
 					messageType,
 					uploadIds:
 						request.body.uploadIds?.map((s) => BigInt(s)) ?? [],
+					parentId: request.body.parentId,
 				};
 			} else {
 				return reply.sendError(
@@ -270,6 +278,39 @@ export default async function routes(fastify: FastifyTypebox) {
 			const { payload } = await inboxManager.createMessage(options);
 
 			reply.send(payload);
+		},
+	);
+
+	// Deletes a message
+	fastify.delete<{
+		Params: ChatDeleteMessageIdParams;
+	}>(
+		"/conversations/:id/messages/:messageId",
+		{
+			schema: {
+				params: ChatDeleteMessageIdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session!;
+			const user = await session.getUser(prisma);
+			const channelId = BigInt(request.params.id);
+			const messageId = BigInt(request.params.messageId);
+
+			const channel = await inboxManager.getChannelParticipants(
+				channelId,
+				user.id,
+			);
+			if (!channel) {
+				return reply.sendError(APIErrors.CHANNEL_NOT_FOUND);
+			}
+
+			await inboxManager.deleteMessage(channelId, messageId, user.id);
+			reply.status(201).send();
 		},
 	);
 

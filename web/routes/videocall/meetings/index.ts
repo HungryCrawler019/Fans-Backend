@@ -2,10 +2,11 @@ import { Logger } from "pino";
 import { DateTime, Interval } from "luxon";
 import dinero from "dinero.js";
 import { TaxjarError } from "taxjar/dist/util/types.js";
-import { TransactionStatus } from "@prisma/client";
+import { MeetingStatus, TransactionStatus } from "@prisma/client";
 import { setInterval } from "node:timers/promises";
 import {
 	DEFAULT_PAGE_SIZE,
+	isOutOfRange,
 	PaginatedQuery,
 } from "../../../../common/pagination.js";
 import PrismaService from "../../../../common/service/PrismaService.js";
@@ -19,15 +20,9 @@ import SiftService from "../../../../common/service/SiftService.js";
 import { IdParams } from "../../../../common/validators/schemas.js";
 import { IdParamsValidator } from "../../../../common/validators/validation.js";
 import { FastifyTypebox } from "../../../types.js";
-import {
-	CreateMeetingBody,
-	AcceptMeetingParams,
-	GetChimeReply,
-	MeetingsQuery,
-} from "./schemas.js";
+import { CreateMeetingBody, GetChimeReply, MeetingsQuery } from "./schemas.js";
 import {
 	CreateMeetingBodyValidator,
-	AcceptMeetingParamsValidator,
 	MeetingQueryValidator,
 } from "./validation.js";
 import { ModelConverter } from "../../../models/modelConverter.js";
@@ -154,6 +149,14 @@ export default async function routes(fastify: FastifyTypebox) {
 				where: {
 					hostId: creator.id,
 					startDate: { gte: startTime.toJSDate() },
+					AND: [
+						{
+							status: { not: MeetingStatus.Cancelled },
+						},
+						{
+							status: { not: MeetingStatus.Declined },
+						},
+					],
 				},
 			});
 			if (
@@ -256,6 +259,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				userId: BigInt(session.userId),
 				startDate: meetingTimeInterval.start?.toUTC()?.toJSDate(),
 				endDate: meetingTimeInterval.end?.toUTC()?.toJSDate(),
+				topics: request.body.topics,
 			});
 
 			// Create transaction
@@ -437,12 +441,99 @@ export default async function routes(fastify: FastifyTypebox) {
 	);
 
 	fastify.post<{
-		Params: AcceptMeetingParams;
+		Params: IdParams;
 	}>(
-		"/:meetingId/accept",
+		"/:id/decline",
 		{
 			schema: {
-				params: AcceptMeetingParamsValidator,
+				params: IdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+				sessionManager.requireProfileHandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session as Session;
+			const { id: meetingId } = request.params;
+			const profile = await session.getProfile(prisma);
+			if (!profile) {
+				return reply.sendError(APIErrors.PROFILE_NOT_FOUND);
+			}
+
+			const meetingStatus = await prisma.meeting.findFirst({
+				where: { id: BigInt(meetingId), hostId: profile.id },
+				select: { status: true },
+			});
+			if (!meetingStatus) {
+				return reply.sendError(APIErrors.MEETING_NOT_FOUND);
+			}
+			if (meetingStatus.status !== MeetingStatus.Pending) {
+				return reply.sendError(APIErrors.MEETING_INVALID_STATE);
+			}
+
+			await prisma.meeting.update({
+				where: { id: BigInt(meetingId) },
+				data: { status: MeetingStatus.Declined },
+			});
+
+			return reply.send();
+		},
+	);
+
+	fastify.post<{
+		Params: IdParams;
+	}>(
+		"/:id/cancel",
+		{
+			schema: {
+				params: IdParamsValidator,
+			},
+			preHandler: [
+				sessionManager.sessionPreHandler,
+				sessionManager.requireAuthHandler,
+				sessionManager.requireProfileHandler,
+				authorizeNetService.webhookPrehandler,
+			],
+		},
+		async (request, reply) => {
+			const session = request.session as Session;
+			const { id: meetingId } = request.params;
+			const profile = await session.getProfile(prisma);
+			if (!profile) {
+				return reply.sendError(APIErrors.PROFILE_NOT_FOUND);
+			}
+
+			const meetingStatus = await prisma.meeting.findFirst({
+				where: { id: BigInt(meetingId), hostId: profile.id },
+				select: { status: true },
+			});
+			if (!meetingStatus) {
+				return reply.sendError(APIErrors.MEETING_NOT_FOUND);
+			}
+			if (meetingStatus.status !== MeetingStatus.Accepted) {
+				return reply.sendError(APIErrors.MEETING_INVALID_STATE);
+			}
+
+			// TODO: implement refund
+
+			await prisma.meeting.update({
+				where: { id: BigInt(meetingId) },
+				data: { status: MeetingStatus.Cancelled },
+			});
+
+			return reply.send();
+		},
+	);
+
+	fastify.post<{
+		Params: IdParams;
+	}>(
+		"/:id/accept",
+		{
+			schema: {
+				params: IdParamsValidator,
 			},
 			preHandler: [
 				sessionManager.sessionPreHandler,
@@ -454,6 +545,7 @@ export default async function routes(fastify: FastifyTypebox) {
 		async (request, reply) => {
 			const session = request.session as Session;
 			const profile = await session.getProfile(prisma);
+			const { id: meetingId } = request.params;
 
 			if (!profile) {
 				return reply.sendError(APIErrors.PROFILE_NOT_FOUND);
@@ -463,6 +555,7 @@ export default async function routes(fastify: FastifyTypebox) {
 				where: {
 					creatorId: profile.id,
 					status: TransactionStatus.Pending,
+					meetingId: BigInt(meetingId),
 				},
 				orderBy: { createdAt: "desc" },
 				include: {
@@ -605,10 +698,14 @@ export default async function routes(fastify: FastifyTypebox) {
 					videoCallPurchaseStatus?.status ===
 					TransactionStatus.Successful
 				) {
-					clearInterval(POLL_INTERVAL);
-					return reply.send({
-						message: "Video call accepted successfully!",
+					await prisma.meeting.update({
+						where: {
+							id: BigInt(meetingId),
+						},
+						data: { status: MeetingStatus.Accepted },
 					});
+					clearInterval(POLL_INTERVAL);
+					return reply.send();
 				}
 
 				if (Date.now() - startDateTime > MAX_DURATION) {
@@ -625,7 +722,6 @@ export default async function routes(fastify: FastifyTypebox) {
 
 	fastify.get<{
 		Querystring: PaginatedQuery<MeetingsQuery>;
-		Reply: IMeeting[];
 	}>(
 		"/",
 		{
@@ -644,32 +740,68 @@ export default async function routes(fastify: FastifyTypebox) {
 				hostId,
 				before,
 				after,
+				status,
+				sort,
 			} = request.query;
 
 			const session = request.session!;
-			const meetings = await prisma.meeting.findMany({
-				where: {
-					...(hostId ? { hostId: BigInt(hostId) } : {}),
-					users: {
-						some: {
-							userId: BigInt(session.userId),
-						},
-					},
-					startDate: {
-						lte: before
-							? new Date(before)
-							: DateTime.utc().plus({ years: 1 }).toJSDate(),
-						gte: after
-							? new Date(after)
-							: DateTime.utc().minus({ years: 1 }).toJSDate(),
+
+			const statusMap = {
+				pending: MeetingStatus.Pending,
+				accepted: MeetingStatus.Accepted,
+				cancelled: MeetingStatus.Cancelled,
+				declined: MeetingStatus.Declined,
+			};
+			const meetingStatus = status && statusMap[status];
+			const statusQuery = status
+				? {
+						status: meetingStatus,
+				  }
+				: {};
+			const where = {
+				...(hostId ? { hostId: BigInt(hostId) } : {}),
+				users: {
+					some: {
+						userId: BigInt(session.userId),
 					},
 				},
-				orderBy: { startDate: "asc" },
+				startDate: {
+					lte: before
+						? new Date(before)
+						: DateTime.utc().plus({ years: 1 }).toJSDate(),
+					gte: after
+						? new Date(after)
+						: DateTime.utc().minus({ years: 1 }).toJSDate(),
+				},
+				...statusQuery,
+			};
+
+			const orderMap = {
+				newest: { createdAt: "desc" },
+				oldest: { createdAt: "asc" },
+			} as const;
+			const orderBy = (sort && orderMap[sort]) || { createdAt: "desc" };
+
+			const total = await prisma.meeting.count({
+				where,
+			});
+			if (isOutOfRange(page, size, total)) {
+				return reply.sendError(APIErrors.OUT_OF_RANGE);
+			}
+
+			const meetings = await prisma.meeting.findMany({
+				where,
+				orderBy,
 				take: size,
 				skip: (page - 1) * size,
 			});
 
-			return reply.send(meetings.map(ModelConverter.toIMeeting));
+			return reply.send({
+				page,
+				size,
+				total,
+				meetings: meetings.map(ModelConverter.toIMeeting),
+			});
 		},
 	);
 

@@ -23,7 +23,10 @@ export default async function routes(fastify: FastifyTypebox) {
 	const snowflake = await container.resolve(SnowflakeService);
 	const sessionManager = await container.resolve(SessionManagerService);
 
-	fastify.post<{ Body: StoryCommentCreateReqBody }>(
+	fastify.post<{
+		Body: StoryCommentCreateReqBody;
+		Reply: StoryCommentRespBody;
+	}>(
 		"/",
 		{
 			schema: { body: StoryCommentCreateReqBodyValidator },
@@ -35,81 +38,73 @@ export default async function routes(fastify: FastifyTypebox) {
 		async (request, reply) => {
 			const data = request.body;
 			const session = request.session!;
-			try {
-				const story = await prisma.story.findUnique({
-					where: { id: BigInt(data.storyId) },
-				});
-				if (!story) {
-					return reply.sendError(APIErrors.ITEM_NOT_FOUND("Story"));
-				}
-				if (data.parentCommentId) {
-					const parentComment = await prisma.storyComment.findUnique({
-						where: { id: BigInt(data.parentCommentId) },
-					});
-					if (!parentComment) {
-						return reply.sendError(
-							APIErrors.ITEM_NOT_FOUND("Parent Story Comment"),
-						);
-					}
-				}
 
-				const created = await prisma.storyComment.create({
-					data: {
-						id: snowflake.gen(),
-						userId: BigInt(session.userId),
-						storyId: BigInt(data.storyId),
-						parentCommentId: data.parentCommentId
-							? BigInt(data.parentCommentId)
-							: undefined,
-						content: data.content,
-					},
-					include: {
-						story: {
-							include: {
-								storyMedias: {
-									include: {
-										upload: true,
-									},
+			const story = await prisma.story.findUnique({
+				where: { id: BigInt(data.storyId) },
+			});
+			if (!story) {
+				return reply.sendError(APIErrors.ITEM_NOT_FOUND("Story"));
+			}
+			if (data.parentCommentId) {
+				const parentComment = await prisma.storyComment.findUnique({
+					where: { id: BigInt(data.parentCommentId) },
+				});
+				if (!parentComment) {
+					return reply.sendError(
+						APIErrors.ITEM_NOT_FOUND("Parent Story Comment"),
+					);
+				}
+			}
+
+			const created = await prisma.storyComment.create({
+				data: {
+					id: snowflake.gen(),
+					userId: BigInt(session.userId),
+					storyId: BigInt(data.storyId),
+					parentCommentId: data.parentCommentId
+						? BigInt(data.parentCommentId)
+						: undefined,
+					content: data.content,
+				},
+				include: {
+					story: {
+						include: {
+							storyMedias: {
+								include: {
+									upload: true,
 								},
 							},
 						},
-						parentComment: true,
 					},
-				});
+					parentComment: true,
+				},
+			});
 
-				const storyCommentLikes =
-					await prisma.storyCommentLike.findMany({
-						where: { userId: BigInt(session.userId) },
-						select: { storyCommentId: true },
-					});
+			const storyCommentLikes = await prisma.storyCommentLike.findMany({
+				where: { userId: BigInt(session.userId) },
+				select: { storyCommentId: true },
+			});
 
-				const result: StoryCommentRespBody = {
-					...ModelConverter.toIStoryComment(created),
-					story: ModelConverter.toIStory(created.story),
-					parentComment: created.parentComment
-						? ModelConverter.toIStoryComment(
-								created.parentComment,
-								{
-									isLiked: storyCommentLikes
-										.map((scl) => scl.storyCommentId)
-										.includes(created.parentComment.id),
-								},
-						  )
-						: undefined,
-				};
-				return reply.send(result);
-			} catch (err) {
-				request.log.error(
-					err,
-					`Error on create comment for story #${data.storyId}`,
-				);
-				return reply.sendError(APIErrors.GENERIC_ERROR);
-			}
+			const result: StoryCommentRespBody = {
+				...ModelConverter.toICommentFromStoryComment(created),
+				story: ModelConverter.toIStory(created.story),
+				parentComment: created.parentComment
+					? ModelConverter.toICommentFromStoryComment(
+							created.parentComment,
+							{
+								isLiked: storyCommentLikes
+									.map((scl) => scl.storyCommentId)
+									.includes(created.parentComment.id),
+							},
+					  )
+					: undefined,
+			};
+			return reply.send(result);
 		},
 	);
 
 	// Get all story comments for a story by ID
-	fastify.get<{ Params: IdParams }>(
+	fastify.get<{ Params: IdParams; Reply: StoryRepliesRespBody }>(
 		"/reply/:id",
 		{
 			schema: {
@@ -121,7 +116,6 @@ export default async function routes(fastify: FastifyTypebox) {
 			],
 		},
 		async (request, reply) => {
-			const data = request.body;
 			const session = request.session!;
 			const { id: storyId } = request.params;
 			const hiddenStories = await prisma.hiddenStory.findMany({
@@ -213,25 +207,21 @@ export default async function routes(fastify: FastifyTypebox) {
 			const session = request.session!;
 			const { id } = request.params;
 			const { content } = request.body;
-			try {
-				const storyComment = await prisma.storyComment.findFirst({
-					where: { id: BigInt(id), userId: BigInt(session.userId) },
-				});
-				if (!storyComment) {
-					return reply.sendError(
-						APIErrors.ITEM_NOT_FOUND("Story Comment"),
-					);
-				}
 
-				await prisma.storyComment.update({
-					where: { id: BigInt(id) },
-					data: { content },
-				});
-				return reply.status(202).send();
-			} catch (err) {
-				request.log.error(err, `Error on update story comment #${id}`);
-				return reply.sendError(APIErrors.GENERIC_ERROR);
+			const storyComment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(id), userId: BigInt(session.userId) },
+			});
+			if (!storyComment) {
+				return reply.sendError(
+					APIErrors.ITEM_NOT_FOUND("Story Comment"),
+				);
 			}
+
+			await prisma.storyComment.update({
+				where: { id: BigInt(id) },
+				data: { content },
+			});
+			return reply.status(202).send();
 		},
 	);
 
@@ -246,44 +236,40 @@ export default async function routes(fastify: FastifyTypebox) {
 			],
 		},
 		async (request, reply) => {
-			try {
-				const { id: storyCommentId } = request.params;
-				const session = request.session!;
-				const userId = session.userId;
+			const { id: storyCommentId } = request.params;
+			const session = request.session!;
+			const userId = session.userId;
 
-				const storyComment = await prisma.storyComment.findFirst({
-					where: { id: BigInt(storyCommentId) },
-					include: {
-						story: {
-							include: { profile: true },
-						},
+			const storyComment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(storyCommentId) },
+				include: {
+					story: {
+						include: { profile: true },
 					},
-				});
+				},
+			});
 
-				if (!storyComment) {
-					return reply.sendError(
-						APIErrors.ITEM_NOT_FOUND("Story Comment"),
-					);
-				}
-
-				if (
-					BigInt(userId) !== storyComment.story.profile.userId &&
-					BigInt(userId) !== storyComment.userId
-				) {
-					return reply.sendError(
-						APIErrors.NOT_PERMISSION_TO_DELETE_COMMENT,
-					);
-				}
-
-				await prisma.storyComment.delete({
-					where: { id: BigInt(storyCommentId) },
-				});
-				return reply
-					.status(202)
-					.send({ message: "Story Comment is removed." });
-			} catch (err) {
-				return reply.sendError(APIErrors.GENERIC_ERROR);
+			if (!storyComment) {
+				return reply.sendError(
+					APIErrors.ITEM_NOT_FOUND("Story Comment"),
+				);
 			}
+
+			if (
+				BigInt(userId) !== storyComment.story.profile.userId &&
+				BigInt(userId) !== storyComment.userId
+			) {
+				return reply.sendError(
+					APIErrors.NOT_PERMISSION_TO_DELETE_COMMENT,
+				);
+			}
+
+			await prisma.storyComment.delete({
+				where: { id: BigInt(storyCommentId) },
+			});
+			return reply
+				.status(202)
+				.send({ message: "Story Comment is removed." });
 		},
 	);
 
@@ -299,116 +285,109 @@ export default async function routes(fastify: FastifyTypebox) {
 			],
 		},
 		async (request, reply) => {
-			try {
-				const session = request.session!;
-				const { id: storyCommentId } = request.params;
-				const userId = session.userId;
-				const comment = await prisma.storyComment.findFirst({
-					where: { id: BigInt(storyCommentId) },
-					include: { story: true },
-				});
-				if (!comment) {
-					return reply.sendError(
-						APIErrors.ITEM_NOT_FOUND("Story Comment"),
-					);
-				}
+			const session = request.session!;
+			const { id: storyCommentId } = request.params;
+			const userId = session.userId;
+			const comment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(storyCommentId) },
+				include: { story: true },
+			});
+			if (!comment) {
+				return reply.sendError(
+					APIErrors.ITEM_NOT_FOUND("Story Comment"),
+				);
+			}
 
-				const storyCommentLike =
-					await prisma.storyCommentLike.findFirst({
-						where: {
-							userId: BigInt(userId),
-							storyCommentId: BigInt(storyCommentId),
+			const storyCommentLike = await prisma.storyCommentLike.findFirst({
+				where: {
+					userId: BigInt(userId),
+					storyCommentId: BigInt(storyCommentId),
+				},
+			});
+
+			if (storyCommentLike) {
+				return reply.sendError(APIErrors.COMMENT_IS_LIKED_ALREADY);
+			}
+			const created = await prisma.storyCommentLike.create({
+				data: {
+					storyCommentId: BigInt(storyCommentId),
+					userId: BigInt(userId),
+				},
+				include: {
+					storyComment: true,
+				},
+			});
+
+			const updatedStoryComment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(storyCommentId) },
+				include: {
+					_count: {
+						select: {
+							storyCommentLikes: true,
 						},
-					});
-
-				if (storyCommentLike) {
-					return reply.sendError(APIErrors.COMMENT_IS_LIKED_ALREADY);
-				}
-				const created = await prisma.storyCommentLike.create({
-					data: {
-						storyCommentId: BigInt(storyCommentId),
-						userId: BigInt(userId),
 					},
-					include: {
-						storyComment: true,
+					story: {
+						include: {
+							storyMedias: {
+								include: {
+									upload: true,
+								},
+							},
+						},
 					},
-				});
-
-				const updatedStoryComment = await prisma.storyComment.findFirst(
-					{
-						where: { id: BigInt(storyCommentId) },
+					parentComment: {
 						include: {
 							_count: {
 								select: {
 									storyCommentLikes: true,
-								},
-							},
-							story: {
-								include: {
-									storyMedias: {
-										include: {
-											upload: true,
-										},
-									},
-								},
-							},
-							parentComment: {
-								include: {
-									_count: {
-										select: {
-											storyCommentLikes: true,
-											replies: true,
-										},
-									},
+									replies: true,
 								},
 							},
 						},
 					},
-				);
-				if (!updatedStoryComment) {
-					return reply.sendError(APIErrors.ITEM_NOT_FOUND("Comment"));
-				}
+				},
+			});
+			if (!updatedStoryComment) {
+				return reply.sendError(APIErrors.ITEM_NOT_FOUND("Comment"));
+			}
 
-				const storyCommentLikes =
-					await prisma.storyCommentLike.findMany({
-						where: { userId: BigInt(session.userId) },
-						select: { storyCommentId: true },
-					});
+			const storyCommentLikes = await prisma.storyCommentLike.findMany({
+				where: { userId: BigInt(session.userId) },
+				select: { storyCommentId: true },
+			});
 
-				const result: StoryCommentRespBody = {
-					...ModelConverter.toIStoryComment(updatedStoryComment, {
+			const result: StoryCommentRespBody = {
+				...ModelConverter.toICommentFromStoryComment(
+					updatedStoryComment,
+					{
 						isLiked: storyCommentLikes
 							.map((scl) => scl.storyCommentId)
 							.includes(updatedStoryComment.id),
-					}),
-					story: ModelConverter.toIStory(updatedStoryComment.story, {
-						isLiked:
-							(await prisma.storyCommentLike.count({
-								where: {
-									userId: BigInt(session.userId),
-									storyCommentId: BigInt(storyCommentId),
-								},
-							})) > 0,
-					}),
-					parentComment: updatedStoryComment.parentComment
-						? ModelConverter.toIStoryComment(
-								updatedStoryComment.parentComment,
-								{
-									isLiked: storyCommentLikes
-										.map((scl) => scl.storyCommentId)
-										.includes(
-											updatedStoryComment.parentComment
-												.id,
-										),
-								},
-						  )
-						: undefined,
-				};
-				return reply.status(200).send(result);
-			} catch (err) {
-				console.log(err);
-				return reply.sendError(APIErrors.GENERIC_ERROR);
-			}
+					},
+				),
+				story: ModelConverter.toIStory(updatedStoryComment.story, {
+					isLiked:
+						(await prisma.storyCommentLike.count({
+							where: {
+								userId: BigInt(session.userId),
+								storyCommentId: BigInt(storyCommentId),
+							},
+						})) > 0,
+				}),
+				parentComment: updatedStoryComment.parentComment
+					? ModelConverter.toICommentFromStoryComment(
+							updatedStoryComment.parentComment,
+							{
+								isLiked: storyCommentLikes
+									.map((scl) => scl.storyCommentId)
+									.includes(
+										updatedStoryComment.parentComment.id,
+									),
+							},
+					  )
+					: undefined,
+			};
+			return reply.status(200).send(result);
 		},
 	);
 
@@ -422,109 +401,102 @@ export default async function routes(fastify: FastifyTypebox) {
 			],
 		},
 		async (request, reply) => {
-			try {
-				const session = request.session!;
-				const { id: storyCommentId } = request.params;
-				const userId = session.userId;
-				const storyComment = await prisma.storyComment.findFirst({
-					where: { id: BigInt(storyCommentId) },
-					include: { story: true },
-				});
-				if (!storyComment) {
-					return reply.sendError(
-						APIErrors.ITEM_NOT_FOUND("Story Comment"),
-					);
-				}
+			const session = request.session!;
+			const { id: storyCommentId } = request.params;
+			const userId = session.userId;
+			const storyComment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(storyCommentId) },
+				include: { story: true },
+			});
+			if (!storyComment) {
+				return reply.sendError(
+					APIErrors.ITEM_NOT_FOUND("Story Comment"),
+				);
+			}
 
-				const storyCommentLike =
-					await prisma.storyCommentLike.findFirst({
-						where: {
-							userId: BigInt(userId),
+			const storyCommentLike = await prisma.storyCommentLike.findFirst({
+				where: {
+					userId: BigInt(userId),
+					storyCommentId: BigInt(storyCommentId),
+				},
+			});
+
+			if (!storyCommentLike) {
+				return reply.sendError(APIErrors.COMMENT_IS_NOT_LIKED_YET);
+			} else {
+				await prisma.storyCommentLike.delete({
+					where: {
+						storyCommentId_userId: {
 							storyCommentId: BigInt(storyCommentId),
+							userId: BigInt(userId),
 						},
-					});
+					},
+				});
+			}
 
-				if (!storyCommentLike) {
-					return reply.sendError(APIErrors.COMMENT_IS_NOT_LIKED_YET);
-				} else {
-					await prisma.storyCommentLike.delete({
-						where: {
-							storyCommentId_userId: {
-								storyCommentId: BigInt(storyCommentId),
-								userId: BigInt(userId),
-							},
+			const updatedStoryComment = await prisma.storyComment.findFirst({
+				where: { id: BigInt(storyCommentId) },
+				include: {
+					_count: {
+						select: {
+							storyCommentLikes: true,
 						},
-					});
-				}
-
-				const updatedStoryComment = await prisma.storyComment.findFirst(
-					{
-						where: { id: BigInt(storyCommentId) },
+					},
+					parentComment: true,
+					story: {
 						include: {
-							_count: {
-								select: {
-									storyCommentLikes: true,
-								},
-							},
-							parentComment: true,
-							story: {
+							storyMedias: {
 								include: {
-									storyMedias: {
-										include: {
-											upload: true,
-										},
-									},
+									upload: true,
 								},
 							},
 						},
 					},
+				},
+			});
+			if (!updatedStoryComment) {
+				return reply.sendError(
+					APIErrors.ITEM_NOT_FOUND("Story Comment"),
 				);
-				if (!updatedStoryComment) {
-					return reply.sendError(
-						APIErrors.ITEM_NOT_FOUND("Story Comment"),
-					);
-				}
+			}
 
-				const storyCommentLikes =
-					await prisma.storyCommentLike.findMany({
-						where: { userId: BigInt(session.userId) },
-						select: { storyCommentId: true },
-					});
+			const storyCommentLikes = await prisma.storyCommentLike.findMany({
+				where: { userId: BigInt(session.userId) },
+				select: { storyCommentId: true },
+			});
 
-				const result: StoryCommentRespBody = {
-					...ModelConverter.toIStoryComment(updatedStoryComment, {
+			const result: StoryCommentRespBody = {
+				...ModelConverter.toICommentFromStoryComment(
+					updatedStoryComment,
+					{
 						isLiked: storyCommentLikes
 							.map((scl) => scl.storyCommentId)
 							.includes(updatedStoryComment.id),
-					}),
-					story: ModelConverter.toIStory(updatedStoryComment.story, {
-						isLiked:
-							(await prisma.storyCommentLike.count({
-								where: {
-									userId: BigInt(session.userId),
-									storyCommentId: BigInt(storyCommentId),
-								},
-							})) > 0,
-					}),
-					parentComment: updatedStoryComment.parentComment
-						? ModelConverter.toIStoryComment(
-								updatedStoryComment.parentComment,
-								{
-									isLiked: storyCommentLikes
-										.map((scl) => scl.storyCommentId)
-										.includes(
-											updatedStoryComment.parentComment
-												.id,
-										),
-								},
-						  )
-						: undefined,
-				};
-				return reply.status(200).send(result);
-			} catch (err) {
-				console.log(err);
-				return reply.sendError(APIErrors.GENERIC_ERROR);
-			}
+					},
+				),
+				story: ModelConverter.toIStory(updatedStoryComment.story, {
+					isLiked:
+						(await prisma.storyCommentLike.count({
+							where: {
+								userId: BigInt(session.userId),
+								storyCommentId: BigInt(storyCommentId),
+							},
+						})) > 0,
+				}),
+				parentComment: updatedStoryComment.parentComment
+					? ModelConverter.toICommentFromStoryComment(
+							updatedStoryComment.parentComment,
+							{
+								isLiked: storyCommentLikes
+									.map((scl) => scl.storyCommentId)
+									.includes(
+										updatedStoryComment.parentComment.id,
+									),
+							},
+					  )
+					: undefined,
+			};
+			return reply.status(200).send(result);
 		},
 	);
 }

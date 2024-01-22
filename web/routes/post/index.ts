@@ -2383,23 +2383,11 @@ export default async function routes(fastify: FastifyTypebox) {
 						},
 					],
 				},
-				include: {
-					levels: {
-						where: {
-							creatorId: profile.id,
-						},
-					},
-				},
 				skip: (page - 1) * size,
 				take: size,
 			});
 			const result: SearchFansRespBody = {
-				fans: fans.map((f) => ({
-					...ModelConverter.toIUser(f),
-					level: f.levels[0]
-						? ModelConverter.toIUserLevel(f.levels[0])
-						: undefined,
-				})),
+				fans: fans.map((f) => ModelConverter.toIUser(f)),
 				page,
 				size,
 				total,
@@ -2408,7 +2396,9 @@ export default async function routes(fastify: FastifyTypebox) {
 		},
 	);
 
-	fastify.get(
+	fastify.get<{
+		Reply: AnalyzeFansRespBody;
+	}>(
 		"/analyze-fans",
 		{
 			preHandler: [
@@ -2448,12 +2438,10 @@ export default async function routes(fastify: FastifyTypebox) {
 					},
 				});
 			const fans = paymentSubscriptions
-				.filter((ps) => ps.user.levels.length > 0)
+				.filter((ps) => ps.user.levels?.length > 0)
 				.map((ps) => ({
 					...ModelConverter.toIUser(ps.user),
-					level: ps.user.levels[0]
-						? ModelConverter.toIUserLevel(ps.user.levels[0])
-						: undefined,
+					level: ModelConverter.toIUserLevel(ps.user.levels[0]!),
 				}));
 
 			const result: AnalyzeFansRespBody = {
@@ -2463,34 +2451,34 @@ export default async function routes(fastify: FastifyTypebox) {
 						from: 1,
 						to: 20,
 						fans: fans.filter(
-							(f) => 0 < f.level!.level && f.level!.level < 21,
+							(f) => 0 < f.level.level && f.level.level < 21,
 						).length,
 					},
 					{
 						from: 21,
 						to: 40,
 						fans: fans.filter(
-							(f) => 20 < f.level!.level && f.level!.level < 41,
+							(f) => 20 < f.level.level && f.level.level < 41,
 						).length,
 					},
 					{
 						from: 41,
 						to: 60,
 						fans: fans.filter(
-							(f) => 40 < f.level!.level && f.level!.level < 61,
+							(f) => 40 < f.level.level && f.level.level < 61,
 						).length,
 					},
 					{
 						from: 61,
 						to: 80,
 						fans: fans.filter(
-							(f) => 60 < f.level!.level && f.level!.level < 81,
+							(f) => 60 < f.level.level && f.level.level < 81,
 						).length,
 					},
 					{
 						from: 81,
 						to: 100,
-						fans: fans.filter((f) => 80 < f.level!.level).length,
+						fans: fans.filter((f) => 80 < f.level.level).length,
 					},
 				],
 			};
