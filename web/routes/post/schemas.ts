@@ -1,6 +1,5 @@
 import { PostType } from "@prisma/client";
 import {
-	IBookmark,
 	ICategory,
 	IFundraiser,
 	IGiveaway,
@@ -14,7 +13,6 @@ import {
 	ITaggedPeople,
 	IUpload,
 	IUser,
-	IUserLevel,
 } from "../../CommonAPISchemas.js";
 
 export interface PostAdvanced {
@@ -226,7 +224,7 @@ export interface AnalyzeFansRespBody {
 }
 
 export interface SearchFansRespBody {
-	fans: (IUser & { lever?: IUserLevel })[];
+	fans: IUser[];
 	page: number;
 	size: number;
 	total: number;

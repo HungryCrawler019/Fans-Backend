@@ -1,21 +1,22 @@
 import { Logger } from "pino";
 import { DateTime, Interval } from "luxon";
+import { MeetingInterval, MeetingStatus } from "@prisma/client";
 import { FastifyTypebox } from "../../types.js";
 import SessionManagerService, {
 	Session,
 } from "../../../common/service/SessionManagerService.js";
 import PrismaService from "../../../common/service/PrismaService.js";
+import APIErrors from "../../errors/index.js";
+import { ModelConverter } from "../../models/modelConverter.js";
+import { IdParams } from "../../../common/validators/schemas.js";
+import { IdParamsValidator } from "../../../common/validators/validation.js";
+import { GetAvailabilityQueryValidator } from "./validation.js";
 import {
 	AvailabilityInterval,
 	GetAvailabilityQuery,
 	GetAvailabilityReply,
 	VideoCallProfile,
 } from "./schemas.js";
-import APIErrors from "../../errors/index.js";
-import { ModelConverter } from "../../models/modelConverter.js";
-import { GetAvailabilityQueryValidator } from "./validation.js";
-import { IdParams } from "../../../common/validators/schemas.js";
-import { IdParamsValidator } from "../../../common/validators/validation.js";
 
 export default async function routes(fastify: FastifyTypebox) {
 	const { container } = fastify;
@@ -53,6 +54,12 @@ export default async function routes(fastify: FastifyTypebox) {
 			if (!timeInterval.isValid) {
 				return reply.sendError(APIErrors.INVALID_INTERVAL);
 			}
+			if (timeInterval.length("days") > 7) {
+				return reply.sendError(APIErrors.INVALID_INTERVAL);
+			}
+			if (timeInterval.end! < DateTime.now()) {
+				return reply.send({ intervals: [] });
+			}
 
 			const durations = await prisma.meetingDuration.findMany({
 				where: {
@@ -68,7 +75,25 @@ export default async function routes(fastify: FastifyTypebox) {
 				where: { creatorId: creator.id },
 			});
 
-			let responseIntervals: AvailabilityInterval[] = [];
+			let responseIntervalsStart: DateTime[] = [];
+			const pushResponseIntervals = (
+				interval: MeetingInterval,
+				start: DateTime,
+			) => {
+				if (timeInterval.contains(start)) {
+					const numberOfIntervals =
+						interval.length / request.query.duration;
+					for (let i = 0; i < numberOfIntervals; i += 1) {
+						const rsIntervalStart = start.plus({
+							minute: i * request.query.duration,
+						});
+						if (timeInterval.contains(rsIntervalStart)) {
+							responseIntervalsStart.push(rsIntervalStart);
+						}
+					}
+				}
+			};
+
 			intervals.forEach((interval) => {
 				const timeIntervalStart = timeInterval.start as DateTime;
 				const start = DateTime.fromJSDate(interval.startTime)
@@ -80,24 +105,17 @@ export default async function routes(fastify: FastifyTypebox) {
 					.set({
 						weekday: ModelConverter.weekDay2Index(interval.day) + 1,
 					});
+				const nextWeekStart = start.plus({ day: 7 });
 
-				if (timeInterval.contains(start)) {
-					const numberOfIntervals =
-						interval.length / request.query.duration;
-					for (let i = 0; i < numberOfIntervals; i += 1) {
-						const rsIntervalStart = start.plus({
-							minute: i * request.query.duration,
-						});
-						if (timeInterval.contains(rsIntervalStart)) {
-							responseIntervals.push({
-								startDate:
-									rsIntervalStart.toUTC().toISO() || "",
-								duration: request.query.duration,
-							});
-						}
-					}
-				}
+				pushResponseIntervals(interval, start);
+				// `timeInterval` may cover current and next weeks
+				pushResponseIntervals(interval, nextWeekStart);
 			});
+
+			// filter past intervals
+			responseIntervalsStart = responseIntervalsStart.filter(
+				(date) => date > DateTime.now(),
+			);
 
 			// Filter out already booked intervals
 			const existingMeetings = await prisma.meeting.findMany({
@@ -107,6 +125,14 @@ export default async function routes(fastify: FastifyTypebox) {
 						gte: timeInterval.start?.toJSDate(),
 						lte: timeInterval.end?.toJSDate(),
 					},
+					AND: [
+						{
+							status: { not: MeetingStatus.Cancelled },
+						},
+						{
+							status: { not: MeetingStatus.Declined },
+						},
+					],
 				},
 			});
 			const settings = await prisma.meetingSettings.findFirst({
@@ -125,15 +151,16 @@ export default async function routes(fastify: FastifyTypebox) {
 					}),
 				);
 
-				responseIntervals = responseIntervals.filter((rsInterval) => {
-					const rsTimeInterval = Interval.after(
-						DateTime.fromISO(rsInterval.startDate),
-						{ minute: rsInterval.duration },
-					);
+				responseIntervalsStart = responseIntervalsStart.filter(
+					(date) => {
+						const rsTimeInterval = Interval.after(date, {
+							minute: request.query.duration,
+						});
 
-					return !meetingTimeInterval.intersection(rsTimeInterval)
-						?.isValid;
-				});
+						return !meetingTimeInterval.intersection(rsTimeInterval)
+							?.isValid;
+					},
+				);
 			});
 
 			// Check vacations
@@ -146,18 +173,26 @@ export default async function routes(fastify: FastifyTypebox) {
 					DateTime.fromJSDate(vacation.endDate),
 				);
 
-				responseIntervals = responseIntervals.filter((rsInterval) => {
-					const rsTimeInterval = Interval.after(
-						DateTime.fromISO(rsInterval.startDate),
-						{ minute: rsInterval.duration },
-					);
+				responseIntervalsStart = responseIntervalsStart.filter(
+					(date) => {
+						const rsTimeInterval = Interval.after(date, {
+							minute: request.query.duration,
+						});
 
-					return !vacationInterval.intersection(rsTimeInterval)
-						?.isValid;
-				});
+						return !vacationInterval.intersection(rsTimeInterval)
+							?.isValid;
+					},
+				);
 			});
 
-			return reply.send({ intervals: responseIntervals });
+			responseIntervalsStart.sort();
+
+			return reply.send({
+				intervals: responseIntervalsStart.map((date) => ({
+					duration: request.query.duration,
+					startDate: date.toUTC().toISO() || "",
+				})),
+			});
 		},
 	);
 

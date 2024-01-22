@@ -17,6 +17,7 @@ import NotificationService from "../../../common/service/NotificationService.js"
 import PrismaService from "../../../common/service/PrismaService.js";
 import SessionManagerService from "../../../common/service/SessionManagerService.js";
 import SiftService from "../../../common/service/SiftService.js";
+import EmailTemplateSenderService from "../../../common/service/EmailTemplateSenderService.js";
 import SnowflakeService from "../../../common/service/SnowflakeService.js";
 import APIErrors from "../../errors/index.js";
 
@@ -59,6 +60,9 @@ export default async function routes(
 	const notification = await container.resolve(NotificationService);
 	const siftService = await container.resolve(SiftService);
 	const inboxManager = await container.resolve(InboxManagerService);
+	const emailTemplateSenderService = await container.resolve(
+		EmailTemplateSenderService,
+	);
 
 	const formatPriceForNotification = (
 		dinero: Dinero,
@@ -606,33 +610,33 @@ export default async function routes(
 			const user = await session.getUser(prisma);
 			const profile = await session.getProfile(prisma);
 
-			const paymentMethod = await prisma.paymentMethod.findFirst({
-				where: {
-					userId: user.id,
-					provider: "AuthorizeNet",
-				},
-			});
+			// const paymentMethod = await prisma.paymentMethod.findFirst({
+			// 	where: {
+			// 		userId: user.id,
+			// 		provider: "AuthorizeNet",
+			// 	},
+			// });
 
-			if (!paymentMethod) {
-				return reply.sendError(APIErrors.NO_PAYMENT_METHOD_FOUND);
-			}
+			// if (!paymentMethod) {
+			// 	return reply.sendError(APIErrors.NO_PAYMENT_METHOD_FOUND);
+			// }
 
-			const customerProfile =
-				await authorizeNetService.fetchCustomerProfile(
-					paymentMethod.token,
-				);
+			// const customerProfile =
+			// 	await authorizeNetService.fetchCustomerProfile(
+			// 		paymentMethod.token,
+			// 	);
 
-			if (customerProfile.getMessages().getResultCode() !== "Ok") {
-				return reply.sendError(
-					APIErrors.PAYMENT_METHOD_FETCH_FAILED(
-						customerProfile.getMessages().getMessage()[0].getText(),
-					),
-				);
-			}
+			// if (customerProfile.getMessages().getResultCode() !== "Ok") {
+			// 	return reply.sendError(
+			// 		APIErrors.PAYMENT_METHOD_FETCH_FAILED(
+			// 			customerProfile.getMessages().getMessage()[0].getText(),
+			// 		),
+			// 	);
+			// }
 
-			if (!customerProfile) {
-				return reply.sendError(APIErrors.NO_PAYMENT_METHOD_FOUND);
-			}
+			// if (!customerProfile) {
+			// 	return reply.sendError(APIErrors.NO_PAYMENT_METHOD_FOUND);
+			// }
 
 			const [subscription, tier] = await Promise.all([
 				prisma.subscription.findUnique({ where: { id: BigInt(id) } }),
@@ -702,17 +706,87 @@ export default async function routes(
 			(async () => {
 				const creator = await prisma.profile.findUnique({
 					where: { id: creatorId },
-					select: { userId: true, notificationsSettings: true },
+					select: {
+						notificationsSettings: true,
+						user: true,
+					},
 				});
 
 				if (!creator) return;
 
 				if (creator.notificationsSettings?.newSubscriberCreatorInApp) {
-					await notification.createNotification(creator.userId, {
+					await notification.createNotification(creator.user!.id, {
 						type: NotificationType.SubscriptionSubscribed,
 						users: [user.id],
 						price: "free",
 					});
+				}
+
+				if (creator?.notificationsSettings?.transactionFanEmail) {
+					await emailTemplateSenderService.sendSubscriptionConfirmation(
+						user.email,
+						{
+							fanName: user.displayName ?? user.username ?? "",
+							creatorName:
+								creator.user!.displayName ??
+								creator.user!.username ??
+								"",
+							amount: formatPriceForNotification(
+								dinero({ amount: 0 }),
+							),
+						},
+					);
+				}
+
+				if (creator?.notificationsSettings?.newSubscriberCreatorEmail) {
+					await emailTemplateSenderService.sendNewSubscriptionAlert(
+						creator.user!.email,
+						{
+							fanName: user.displayName ?? user.username ?? "",
+							creatorName:
+								creator.user!.displayName ??
+								creator.user!.username ??
+								"",
+						},
+					);
+				}
+
+				const welcomeMessage = await prisma.welcomeMessage.findFirst({
+					where: {
+						profileId: creatorId,
+					},
+				});
+
+				if (welcomeMessage?.enabled) {
+					const { text, image } = welcomeMessage;
+
+					const channel = await inboxManager.getOrCreateConversation(
+						creator.user!.id,
+						user.id,
+					);
+
+					if (text) {
+						inboxManager.createMessage({
+							messageType: MessageType.TEXT,
+							channelId: channel.inbox.channelId,
+							userId: creator.user!.id,
+							content: text,
+						});
+					}
+
+					// TODO: Add image support
+					// 1. use image uploads of usage type chat (mostly needs implementation on frontend)
+					// 2. save the upload ids in WelcomeMessage model
+					// 3. send the image message here
+
+					// if (image) {
+					// 	inboxManager.createMessage({
+					// 		messageType: MessageType.IMAGE,
+					// 		channelId: channel.inbox.channelId,
+					// 		userId: creator.userId,
+					// 		uploadIds: ...
+					// 	});
+					// }
 				}
 			})();
 

@@ -35,11 +35,13 @@ export class MeetingService {
 		userId,
 		startDate = DateTime.utc().toJSDate(),
 		endDate = DateTime.utc().plus({ hours: 1 }).toJSDate(),
+		topics,
 	}: {
 		host: Profile;
 		userId: bigint;
 		startDate?: Date;
 		endDate?: Date;
+		topics?: string;
 	}) {
 		const meeting = await this.prisma.meeting.create({
 			data: {
@@ -48,6 +50,7 @@ export class MeetingService {
 				startDate,
 				endDate,
 				chimeRequestToken: uuidv4(),
+				topics,
 			},
 		});
 		const settings = await this.prisma.meetingSettings.findFirst({

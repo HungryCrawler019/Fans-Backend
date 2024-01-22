@@ -1,11 +1,4 @@
-import {
-	IComment,
-	IPost,
-	IReply,
-	IStory,
-	IStoryComment,
-	IStoryReply,
-} from "../../../CommonAPISchemas.js";
+import { IComment, IStory, IStoryReply } from "../../../CommonAPISchemas.js";
 
 export interface StoryCommentCreateReqBody {
 	storyId: string;
@@ -17,10 +10,10 @@ export interface StoryCommentUpdateReqBody {
 	content: string;
 }
 
-export type StoryCommentRespBody = IStoryComment & {
+export interface StoryCommentRespBody extends IComment {
 	story: IStory;
-	parentComment?: IStoryComment;
-};
+	parentComment?: IComment;
+}
 
 export interface StoryRepliesRespBody {
 	replies: IStoryReply[];

@@ -1716,12 +1716,19 @@ model Message {
     userId      BigInt
     messageType Int
     content     String
+    parentId    BigInt?
+    deletedAt   DateTime?
+
+    parentMessage Message?  @relation("MessageReplies", fields: [parentId], references: [id])
+    replies       Message[] @relation("MessageReplies")
 
     uploads                 Upload[]
     chatPaidPostTransaction ChatPaidPostTransaction[]
 
     @@index([channelId], type: BTree)
     @@index([userId], type: BTree)
+    @@index([parentId], type: BTree)
+    @@index([deletedAt], type: BTree)
     @@index([messageType], type: Hash)
     @@map("messages")
 }
@@ -2161,12 +2168,20 @@ enum MeetingType {
     OneOnOne_OneWay
 }
 
+enum MeetingStatus {
+    Pending
+    Accepted
+    Declined
+    Cancelled
+}
+
 model Meeting {
     id                              BigInt                           @id
     host                            Profile                          @relation("meetingHost", fields: [hostId], references: [id], onDelete: Cascade)
     hostId                          BigInt
     startDate                       DateTime
     endDate                         DateTime
+    topics                          String?
     chimeMeetingId                  String?
     chimeRequestToken               String                           @default("")
     prepareJobId                    String?
@@ -2174,6 +2189,8 @@ model Meeting {
     users                           MeetingUser[]
     videoCallPurchases              VideoCallPurchase[]
     videoCallTimeExtensionPurchases VideoCallTimeExtensionPurchase[]
+    status                          MeetingStatus                    @default(Pending)
+    createdAt                       DateTime                         @default(now())
 
     @@index([hostId], type: BTree)
     @@index([startDate], type: BTree)
@@ -2181,6 +2198,7 @@ model Meeting {
     @@index([chimeMeetingId], type: BTree)
     @@index([prepareJobId], type: BTree)
     @@index([cleanJobId], type: BTree)
+    @@index([createdAt], type: BTree)
     @@map("meetings")
 }
 

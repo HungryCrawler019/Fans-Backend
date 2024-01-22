@@ -1023,11 +1023,8 @@ export class ModelConverter {
 		};
 	}
 
-	static toIMessage(
-		message: Message & {
-			user: UserBasicParam;
-			uploads?: Upload[];
-		},
+	static transformMessage(
+		message: Message & { user: UserBasicParam; uploads?: Upload[] },
 	): IMessage {
 		return {
 			id: message.id.toString(),
@@ -1038,6 +1035,25 @@ export class ModelConverter {
 			messageType: message.messageType,
 			images: message.uploads
 				? message.uploads.map((u) => u.url)
+				: undefined,
+		};
+	}
+
+	static toIMessage(
+		message: Message & {
+			user: UserBasicParam;
+			uploads?: Upload[];
+			parentMessage?: Message & {
+				user: UserBasicParam;
+				uploads?: Upload[];
+			};
+		},
+	): IMessage {
+		const transformedMessage = ModelConverter.transformMessage(message);
+		return {
+			...transformedMessage,
+			parentMessage: message.parentMessage
+				? ModelConverter.transformMessage(message.parentMessage)
 				: undefined,
 		};
 	}
@@ -1056,7 +1072,7 @@ export class ModelConverter {
 		};
 	}
 
-	static toIStoryComment(
+	static toICommentFromStoryComment(
 		storyComment: StoryComment & {
 			_count?: {
 				storyCommentLikes?: number;
@@ -1064,15 +1080,15 @@ export class ModelConverter {
 			};
 		},
 		metadata?: { isLiked?: boolean },
-	): IStoryComment {
+	): IComment {
 		return {
 			id: storyComment.id.toString(),
-			storyId: storyComment.storyId.toString(),
+			postId: storyComment.storyId.toString(),
 			userId: storyComment.userId.toString(),
 			content: storyComment.content,
 			likeCount: storyComment._count?.storyCommentLikes,
-			replyCount: storyComment._count?.replies,
-			isLiked: metadata?.isLiked,
+			// replyCount: storyComment._count?.replies,
+			// isLiked: metadata?.isLiked,
 			createdAt: SnowflakeService.extractDate(
 				storyComment.id,
 			).toISOString(),
@@ -1210,6 +1226,7 @@ export class ModelConverter {
 			hostId: data.hostId.toString(),
 			startDate: data.startDate,
 			endDate: data.endDate,
+			status: data.status,
 		};
 	}
 

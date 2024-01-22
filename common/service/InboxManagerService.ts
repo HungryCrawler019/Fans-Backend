@@ -48,6 +48,11 @@ interface IMessageCreateOptionsText extends IMessageCreateOptionsBase {
 	 * Message content. Must be less than 2000 characters and not empty.
 	 */
 	content: string;
+
+	/**
+	 * ID of the message to reply to. Must belong to the same channel.
+	 */
+	parentId?: string;
 }
 
 interface IMessageCreateOptionsImage extends IMessageCreateOptionsBase {
@@ -57,6 +62,11 @@ interface IMessageCreateOptionsImage extends IMessageCreateOptionsBase {
 	 * IDs of the uploads to attach to the message. Must be between 1 and 4 and belong to the user.
 	 */
 	uploadIds: bigint[];
+
+	/**
+	 * ID of the message to reply to. Must belong to the same channel.
+	 */
+	parentId?: string;
 }
 
 /**
@@ -68,6 +78,7 @@ export type IMessageCreateOptions =
 
 export interface MessageWithUser extends Message {
 	user: UserBasicParam;
+	parentMessage?: MessageWithUser;
 }
 
 /**
@@ -123,6 +134,7 @@ class InboxManagerService {
 						},
 						where: {
 							channelId,
+							deletedAt: null,
 						},
 						orderBy: {
 							id: "desc",
@@ -183,6 +195,7 @@ class InboxManagerService {
 			const lastMessage = await this.#prisma.message.findFirst({
 				where: {
 					channelId: channel.id,
+					deletedAt: null,
 				},
 				orderBy: {
 					id: "desc",
@@ -375,9 +388,18 @@ class InboxManagerService {
 	 * @param messages Array of Message models to resolve users for.
 	 * @returns Array of Message models with resolved users.
 	 */
-	async resolveUsers(messages: Message[]): Promise<MessageWithUser[]> {
+	async resolveUsers(
+		messages: (Message & { parentMessage?: Message | null })[],
+	): Promise<MessageWithUser[]> {
 		const userIdSet = new Set<bigint>();
-		messages.forEach((message) => userIdSet.add(message.userId));
+
+		messages.forEach((message) => {
+			userIdSet.add(message.userId);
+			if (message.parentMessage) {
+				userIdSet.add(message.parentMessage.userId);
+			}
+		});
+
 		const userIdMap = new Map<bigint, UserBasicParam>();
 		userIdMap.set(0n, systemUser);
 
@@ -407,6 +429,17 @@ class InboxManagerService {
 				displayName: "Unknown",
 				avatar: null,
 			},
+			parentMessage: message.parentMessage
+				? {
+						...message.parentMessage,
+						user: userIdMap.get(message.parentMessage.userId) ?? {
+							id: message.parentMessage.userId,
+							username: "unknown",
+							displayName: "Unknown",
+							avatar: null,
+						},
+				  }
+				: undefined,
 		}));
 	}
 
@@ -441,7 +474,7 @@ class InboxManagerService {
 	async createMessage(
 		options: IMessageCreateOptions,
 	): Promise<{ payload: IMessage; message: MessageWithUser }> {
-		const { messageType, channelId, userId } = options;
+		const { messageType, channelId, userId, parentId } = options;
 		const broadcast = options.broadcast ?? true;
 
 		if (
@@ -471,12 +504,16 @@ class InboxManagerService {
 			}
 
 			message = await this.#prisma.message.create({
+				include: {
+					parentMessage: true,
+				},
 				data: {
 					id: this.#snowflake.gen(),
 					channelId,
 					userId,
 					content,
 					messageType,
+					parentId: parentId ? BigInt(parentId) : undefined,
 				},
 			});
 		} else if (messageType === MessageType.IMAGE) {
@@ -509,6 +546,7 @@ class InboxManagerService {
 			message = await this.#prisma.message.create({
 				include: {
 					uploads: true,
+					parentMessage: true,
 				},
 				data: {
 					id: this.#snowflake.gen(),
@@ -521,6 +559,7 @@ class InboxManagerService {
 							id: BigInt(u.id),
 						})),
 					},
+					parentId: parentId ? BigInt(parentId) : undefined,
 				},
 			});
 		} else {
@@ -550,6 +589,23 @@ class InboxManagerService {
 			payload: messagePayload,
 			message: resolvedMessage,
 		};
+	}
+
+	async deleteMessage(
+		channelId: bigint,
+		messageId: bigint,
+		userId: bigint,
+	): Promise<void> {
+		await this.#prisma.message.update({
+			where: {
+				id: messageId,
+				channelId,
+				userId,
+			},
+			data: {
+				deletedAt: new Date(),
+			},
+		});
 	}
 }
 
